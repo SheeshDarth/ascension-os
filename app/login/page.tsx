@@ -3,7 +3,7 @@
 import { FormEvent, useState } from "react";
 import Link from "next/link";
 import { Card, ErrorBanner, PageTitle } from "@/components/ui";
-import { authEnabled, signInWithMagicLink } from "@/lib/auth";
+import { authEnabled, signInWithGoogle, signInWithMagicLink } from "@/lib/auth";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -26,6 +26,17 @@ export default function LoginPage() {
     }
   }
 
+  async function googleLogin() {
+    setError("");
+    setLoading(true);
+    try {
+      await signInWithGoogle();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Unable to start Google login.");
+      setLoading(false);
+    }
+  }
+
   return (
     <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center px-4 py-8 text-text">
       <PageTitle
@@ -36,23 +47,29 @@ export default function LoginPage() {
       {error ? <ErrorBanner message={error} /> : null}
       <Card>
         {authEnabled() ? (
-          <form onSubmit={submit} className="grid gap-4">
-            <label className="grid gap-2">
-              <span className="label">Email</span>
-              <input
-                className="field"
-                type="email"
-                autoComplete="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                required
-              />
-            </label>
-            <button className="primary-button w-full" type="submit" disabled={loading}>
-              {loading ? "Sending..." : "Send Magic Link"}
+          <div className="grid gap-4">
+            <button className="primary-button w-full" type="button" onClick={googleLogin} disabled={loading}>
+              Continue with Google
             </button>
-            {message ? <p className="text-sm text-emerald" aria-live="polite">{message}</p> : null}
-          </form>
+            <div className="h-px bg-line" />
+            <form onSubmit={submit} className="grid gap-4">
+              <label className="grid gap-2">
+                <span className="label">Email magic link fallback</span>
+                <input
+                  className="field"
+                  type="email"
+                  autoComplete="email"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  required
+                />
+              </label>
+              <button className="secondary-button w-full" type="submit" disabled={loading}>
+                {loading ? "Sending..." : "Send Magic Link"}
+              </button>
+              {message ? <p className="text-sm text-emerald" aria-live="polite">{message}</p> : null}
+            </form>
+          </div>
         ) : (
           <div className="grid gap-3 text-sm text-muted">
             <p>Supabase env vars are missing, so AscensionOS is running in local-only development mode.</p>

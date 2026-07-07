@@ -31,6 +31,7 @@ cp .env.example .env.local
 ```bash
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
+GEMINI_API_KEY=
 ```
 
 4. Start the dev server:
@@ -49,9 +50,11 @@ If Supabase keys are missing, the app uses localStorage as a development fallbac
 2. Open the SQL editor.
 3. Run `supabase/schema.sql`.
 4. Enable email magic-link auth in Supabase Auth settings.
-5. Add your local and deployed URLs to Supabase Auth redirect URLs.
-6. Copy the project URL and anon key into `.env.local`.
-7. Restart the dev server.
+5. Enable Google as an OAuth provider in Supabase Auth settings.
+6. Add your local and deployed URLs to Supabase Auth redirect URLs.
+7. Copy the project URL and anon key into `.env.local`.
+8. Optional: add `GEMINI_API_KEY` for cloud AI weekly analysis.
+9. Restart the dev server.
 
 The app creates seed goals automatically when the `goals` table is empty.
 All Supabase tables are protected with Row Level Security and scoped to the signed-in user.
@@ -63,6 +66,7 @@ For an existing prototype database, use `supabase/migrations/001_private_hardeni
 ```bash
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
+GEMINI_API_KEY=
 ```
 
 ## Vercel Deployment
@@ -106,6 +110,16 @@ Open `/memory-graph` to visualize performance from both phone and laptop. It inc
 
 Open `/weekly-review` and press `Export Weekly Review for ChatGPT`. The app saves the weekly export to Supabase when configured, then copies a markdown report with scores, totals, best/worst days, patterns, and next-week commitments.
 
+## AI Performance Analysis
+
+Open `/settings` to choose the AI provider:
+
+- `Off`: no AI analysis.
+- `Deterministic offline`: rule-based analysis from logs and weekly scores.
+- `Gemini cloud`: server-side Gemini analysis when `GEMINI_API_KEY` exists and cloud consent is enabled.
+
+The weekly review page shows a data preview before analysis. Gemini is never called from browser code. If Gemini is unavailable, missing, offline, or returns invalid output, AscensionOS falls back to deterministic analysis. AI analysis history can be exported or deleted from settings, and each analysis can be rated useful/not useful.
+
 Paste it into ChatGPT and ask for:
 
 ```text
@@ -121,6 +135,7 @@ The provided schema enables Row Level Security and owner-only policies. Before s
 - Keep the repo and Supabase project private.
 - Confirm Supabase Auth redirect URLs only include trusted domains.
 - Never expose service-role keys in the browser.
+- Never expose `GEMINI_API_KEY` in client-side code.
 
 ## Quality Checks
 

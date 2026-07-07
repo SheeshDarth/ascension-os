@@ -9,7 +9,9 @@ export const defaultSettings: Settings = {
   nirmiq_daily_target: 60,
   academic_daily_target: 30,
   reels_limit: 30,
-  sleep_target: "7-8.5 hours"
+  sleep_target: "7-8.5 hours",
+  ai_provider: "deterministic",
+  ai_consent: false
 };
 
 export const seedGoals: Goal[] = [

@@ -3,12 +3,14 @@
 import { seedGoals, defaultSettings } from "@/lib/goals";
 import { calculateScores } from "@/lib/scoring";
 import { supabase } from "@/lib/supabase";
-import type { DailyLog, Goal, Settings, WeeklyReview, WeeklyReviewRow } from "@/lib/types";
+import type { AiAnalysis, AnalysisResult, DailyLog, Goal, MemoryItem, Settings, WeeklyReview, WeeklyReviewRow } from "@/lib/types";
 
 const LOGS_KEY = "ascensionos.daily_logs";
 const GOALS_KEY = "ascensionos.goals";
 const SETTINGS_KEY = "ascensionos.settings";
 const REVIEWS_KEY = "ascensionos.weekly_reviews";
+const AI_ANALYSES_KEY = "ascensionos.ai_analyses";
+const MEMORY_ITEMS_KEY = "ascensionos.memory_items";
 
 export class DataAccessError extends Error {
   constructor(message: string) {
@@ -41,7 +43,7 @@ async function requireUserId() {
   return data.user.id;
 }
 
-function fail(message: string) {
+function fail(message: string): never {
   throw new DataAccessError(message);
 }
 
@@ -135,7 +137,7 @@ export async function getSettings(): Promise<Settings> {
     const userId = await requireUserId();
     const { data, error } = await supabase.from("settings").select("*").eq("user_id", userId).maybeSingle();
     if (error) fail(error.message);
-    if (data) return data as Settings;
+    if (data) return { ...defaultSettings, ...(data as Settings) };
     const { data: inserted, error: insertError } = await supabase
       .from("settings")
       .insert({ ...defaultSettings, user_id: userId })
@@ -144,7 +146,7 @@ export async function getSettings(): Promise<Settings> {
     if (insertError) fail(insertError.message);
     return inserted as Settings;
   }
-  return readLocal<Settings>(SETTINGS_KEY, defaultSettings);
+  return { ...defaultSettings, ...readLocal<Settings>(SETTINGS_KEY, defaultSettings) };
 }
 
 export async function saveSettings(settings: Settings) {
@@ -186,4 +188,92 @@ export async function saveWeeklyReview(review: WeeklyReview, markdown: string): 
   next.push(saved);
   writeLocal(REVIEWS_KEY, next);
   return saved;
+}
+
+export async function getMemoryItems(limit = 20): Promise<MemoryItem[]> {
+  if (supabase) {
+    const userId = await requireUserId();
+    const { data, error } = await supabase
+      .from("memory_items")
+      .select("*")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(limit);
+    if (error) fail(error.message);
+    return (data ?? []) as MemoryItem[];
+  }
+  return readLocal<MemoryItem[]>(MEMORY_ITEMS_KEY, []).slice(0, limit);
+}
+
+export async function getAiAnalyses(): Promise<AiAnalysis[]> {
+  if (supabase) {
+    const userId = await requireUserId();
+    const { data, error } = await supabase
+      .from("ai_analyses")
+      .select("*")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false });
+    if (error) fail(error.message);
+    return (data ?? []) as AiAnalysis[];
+  }
+  return readLocal<AiAnalysis[]>(AI_ANALYSES_KEY, []).sort((a, b) => (b.created_at ?? "").localeCompare(a.created_at ?? ""));
+}
+
+export async function saveAiAnalysis(input: {
+  week_start: string;
+  week_end: string;
+  provider: AiAnalysis["provider"];
+  model: string;
+  input_summary: string;
+  output_json: AnalysisResult;
+}): Promise<AiAnalysis> {
+  if (supabase) {
+    const userId = await requireUserId();
+    const { data, error } = await supabase
+      .from("ai_analyses")
+      .upsert({ ...input, user_id: userId }, { onConflict: "user_id,week_start,provider" })
+      .select()
+      .single();
+    if (error) fail(error.message);
+    return data as AiAnalysis;
+  }
+
+  const analyses = readLocal<AiAnalysis[]>(AI_ANALYSES_KEY, []);
+  const next = analyses.filter((item) => !(item.week_start === input.week_start && item.provider === input.provider));
+  const saved = { ...input, id: crypto.randomUUID(), created_at: new Date().toISOString() };
+  next.push(saved);
+  writeLocal(AI_ANALYSES_KEY, next);
+  return saved;
+}
+
+export async function rateAiAnalysis(id: string, rating: "useful" | "not_useful", correctionNote: string) {
+  if (supabase) {
+    const userId = await requireUserId();
+    const { data, error } = await supabase
+      .from("ai_analyses")
+      .update({ rating, correction_note: correctionNote })
+      .eq("id", id)
+      .eq("user_id", userId)
+      .select()
+      .single();
+    if (error) fail(error.message);
+    return data as AiAnalysis;
+  }
+
+  const analyses = readLocal<AiAnalysis[]>(AI_ANALYSES_KEY, []);
+  const next = analyses.map((item) => (item.id === id ? { ...item, rating, correction_note: correctionNote } : item));
+  writeLocal(AI_ANALYSES_KEY, next);
+  const updated = next.find((item) => item.id === id);
+  if (!updated) fail("Analysis not found.");
+  return updated;
+}
+
+export async function deleteAiAnalyses() {
+  if (supabase) {
+    const userId = await requireUserId();
+    const { error } = await supabase.from("ai_analyses").delete().eq("user_id", userId);
+    if (error) fail(error.message);
+    return;
+  }
+  writeLocal(AI_ANALYSES_KEY, []);
 }

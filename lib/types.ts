@@ -66,6 +66,8 @@ export type Settings = {
   academic_daily_target: number;
   reels_limit: number;
   sleep_target: string;
+  ai_provider: AnalysisProviderId;
+  ai_consent: boolean;
 };
 
 export type WeeklyReviewRow = {
@@ -106,4 +108,59 @@ export type WeeklyReview = {
   biggestFailure: string;
   brutalPattern: string;
   nonNegotiables: string[];
+};
+
+export type AnalysisProviderId = "off" | "deterministic" | "gemini";
+
+export type MemoryItem = {
+  id?: string;
+  user_id?: string;
+  source_type: "log" | "review" | "note" | "goal" | "analysis";
+  source_date?: string | null;
+  title: string;
+  body: string;
+  tags_json: string[];
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type AnalysisInput = {
+  weekStart: string;
+  weekEnd: string;
+  logs: DailyLog[];
+  weeklyReview: WeeklyReview;
+  goals: Goal[];
+  memoryItems: MemoryItem[];
+  consent: {
+    allowCloudAnalysis: boolean;
+    provider: AnalysisProviderId;
+  };
+};
+
+export type AnalysisResult = {
+  summary: string;
+  strongestPatterns: string[];
+  weakestPatterns: string[];
+  risks: string[];
+  nextActions: string[];
+  confidence: "low" | "medium" | "high";
+  sourceDates: string[];
+  sourceMetrics: string[];
+  provider: AnalysisProviderId;
+  model: string;
+  caveats: string[];
+};
+
+export type AiAnalysis = {
+  id?: string;
+  user_id?: string;
+  week_start: string;
+  week_end: string;
+  provider: AnalysisProviderId;
+  model: string;
+  input_summary: string;
+  output_json: AnalysisResult;
+  rating?: "useful" | "not_useful" | null;
+  correction_note?: string | null;
+  created_at?: string;
 };

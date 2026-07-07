@@ -3,23 +3,54 @@
 import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { Card, EmptyState, ErrorBanner, Metric, PageTitle } from "@/components/ui";
-import { getLogs, saveWeeklyReview } from "@/lib/data";
+import { buildAnalysisInputSummary } from "@/lib/analysis";
+import { getAccessToken } from "@/lib/auth";
+import { getAiAnalyses, getGoals, getLogs, getMemoryItems, getSettings, rateAiAnalysis, saveAiAnalysis, saveWeeklyReview } from "@/lib/data";
 import { buildWeeklyReview, weeklyMarkdown } from "@/lib/weekly";
-import type { DailyLog } from "@/lib/types";
+import type { AiAnalysis, AnalysisResult, DailyLog, Goal, MemoryItem, Settings } from "@/lib/types";
 
 export default function WeeklyReviewPage() {
   const [logs, setLogs] = useState<DailyLog[]>([]);
+  const [goals, setGoals] = useState<Goal[]>([]);
+  const [memoryItems, setMemoryItems] = useState<MemoryItem[]>([]);
+  const [settings, setSettings] = useState<Settings | null>(null);
+  const [analyses, setAnalyses] = useState<AiAnalysis[]>([]);
+  const [currentAnalysis, setCurrentAnalysis] = useState<AiAnalysis | null>(null);
+  const [analysisLoading, setAnalysisLoading] = useState(false);
+  const [correctionNote, setCorrectionNote] = useState("");
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    getLogs()
-      .then(setLogs)
+    Promise.all([getLogs(), getGoals(), getMemoryItems(), getSettings(), getAiAnalyses()])
+      .then(([nextLogs, nextGoals, nextMemory, nextSettings, nextAnalyses]) => {
+        setLogs(nextLogs);
+        setGoals(nextGoals);
+        setMemoryItems(nextMemory);
+        setSettings(nextSettings);
+        setAnalyses(nextAnalyses);
+      })
       .catch((caught) => setError(caught instanceof Error ? caught.message : "Unable to load weekly review."));
   }, []);
 
   const review = useMemo(() => buildWeeklyReview(logs), [logs]);
   const markdown = weeklyMarkdown(review);
+  const analysisInput = useMemo(
+    () => ({
+      weekStart: review.weekStart,
+      weekEnd: review.weekEnd,
+      logs: review.logs,
+      weeklyReview: review,
+      goals,
+      memoryItems,
+      consent: {
+        allowCloudAnalysis: Boolean(settings?.ai_consent),
+        provider: settings?.ai_provider ?? "deterministic"
+      }
+    }),
+    [goals, memoryItems, review, settings]
+  );
+  const inputSummary = buildAnalysisInputSummary(analysisInput);
 
   async function copyReview() {
     setError("");
@@ -30,6 +61,53 @@ export default function WeeklyReviewPage() {
       setTimeout(() => setCopied(false), 1800);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Unable to export weekly review.");
+    }
+  }
+
+  async function analyzeWeek() {
+    setError("");
+    setAnalysisLoading(true);
+    try {
+      const token = await getAccessToken();
+      const response = await fetch("/api/analyze/weekly", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify(analysisInput)
+      });
+      if (!response.ok) {
+        const body = (await response.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(body?.error ?? "Unable to generate analysis.");
+      }
+      const result = (await response.json()) as AnalysisResult;
+      const saved = await saveAiAnalysis({
+        week_start: review.weekStart,
+        week_end: review.weekEnd,
+        provider: result.provider,
+        model: result.model,
+        input_summary: inputSummary,
+        output_json: result
+      });
+      setCurrentAnalysis(saved);
+      setAnalyses((current) => [saved, ...current.filter((item) => item.id !== saved.id)]);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Unable to generate analysis.");
+    } finally {
+      setAnalysisLoading(false);
+    }
+  }
+
+  async function rateCurrent(rating: "useful" | "not_useful") {
+    if (!currentAnalysis?.id) return;
+    setError("");
+    try {
+      const updated = await rateAiAnalysis(currentAnalysis.id, rating, correctionNote);
+      setCurrentAnalysis(updated);
+      setAnalyses((current) => current.map((item) => (item.id === updated.id ? updated : item)));
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Unable to rate analysis.");
     }
   }
 
@@ -57,6 +135,82 @@ export default function WeeklyReviewPage() {
           <button type="button" className="primary-button" onClick={copyReview}>
             {copied ? "Copied" : "Export Weekly Review for ChatGPT"}
           </button>
+        </div>
+      </Card>
+
+      <Card className="mt-4">
+        <div className="grid gap-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <p className="text-sm font-semibold text-text">AI Performance Analysis</p>
+              <p className="mt-1 text-xs leading-5 text-ghost">
+                Provider: {settings?.ai_provider ?? "deterministic"} · Gemini consent: {settings?.ai_consent ? "enabled" : "disabled"}
+              </p>
+            </div>
+            <button type="button" className="primary-button" onClick={analyzeWeek} disabled={analysisLoading || review.logs.length === 0}>
+              {analysisLoading ? "Analyzing..." : "Analyze Week"}
+            </button>
+          </div>
+
+          <div className="rounded-md border border-line bg-panel2 p-3">
+            <p className="text-xs font-semibold uppercase text-ghost">Data preview before analysis</p>
+            <p className="mt-2 text-sm text-muted">{inputSummary}</p>
+            {settings?.ai_provider === "gemini" && !settings.ai_consent ? (
+              <p className="mt-2 text-xs text-amber">Gemini is selected, but cloud consent is off. Deterministic analysis will be used.</p>
+            ) : null}
+          </div>
+
+          {currentAnalysis ? (
+            <div className="grid gap-3">
+              <div className="rounded-md border border-cyan/30 bg-cyan/5 p-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <p className="text-sm font-semibold text-cyan">
+                    {currentAnalysis.provider} · {currentAnalysis.model} · {currentAnalysis.output_json.confidence} confidence
+                  </p>
+                  <p className="text-xs text-ghost">{currentAnalysis.created_at}</p>
+                </div>
+                <p className="mt-3 text-sm leading-6 text-text">{currentAnalysis.output_json.summary}</p>
+              </div>
+              <div className="grid gap-3 lg:grid-cols-2">
+                {[
+                  ["Strongest patterns", currentAnalysis.output_json.strongestPatterns],
+                  ["Weakest patterns", currentAnalysis.output_json.weakestPatterns],
+                  ["Risks", currentAnalysis.output_json.risks],
+                  ["Next actions", currentAnalysis.output_json.nextActions]
+                ].map(([title, items]) => (
+                  <div key={String(title)} className="rounded-md border border-line bg-panel2 p-3">
+                    <p className="text-xs font-semibold uppercase text-ghost">{String(title)}</p>
+                    <ul className="mt-2 grid gap-1 text-sm text-muted">
+                      {(items as string[]).map((item) => (
+                        <li key={item}>{item}</li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+              <label className="grid gap-2">
+                <span className="label">Correction note</span>
+                <textarea
+                  className="field min-h-24"
+                  value={correctionNote}
+                  onChange={(event) => setCorrectionNote(event.target.value)}
+                  placeholder="What did the analysis miss or get wrong?"
+                />
+              </label>
+              <div className="grid gap-2 sm:grid-cols-2">
+                <button type="button" className="secondary-button" onClick={() => rateCurrent("useful")}>
+                  Mark Useful
+                </button>
+                <button type="button" className="secondary-button" onClick={() => rateCurrent("not_useful")}>
+                  Mark Not Useful
+                </button>
+              </div>
+            </div>
+          ) : analyses.length ? (
+            <div className="rounded-md border border-line bg-panel2 p-3 text-sm text-muted">
+              Latest saved analysis: {analyses[0].provider} · {analyses[0].week_start} to {analyses[0].week_end}
+            </div>
+          ) : null}
         </div>
       </Card>
 
