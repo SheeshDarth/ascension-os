@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/AppShell";
-import { Card, EmptyState, Metric, PageTitle } from "@/components/ui";
+import { Card, EmptyState, ErrorBanner, Metric, PageTitle } from "@/components/ui";
 import { getLogs } from "@/lib/data";
 import { scoreTone, statusForScore } from "@/lib/scoring";
 import { buildWeeklyReview } from "@/lib/weekly";
@@ -35,9 +35,12 @@ function domainValue(log: DailyLog, key: (typeof domains)[number][1]) {
 
 export default function DashboardPage() {
   const [logs, setLogs] = useState<DailyLog[]>([]);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    getLogs().then(setLogs);
+    getLogs()
+      .then(setLogs)
+      .catch((caught) => setError(caught instanceof Error ? caught.message : "Unable to load dashboard data."));
   }, []);
 
   const current = logs.find((log) => log.date === today());
@@ -50,11 +53,12 @@ export default function DashboardPage() {
         title="AscensionOS"
         subtitle="Target Form: Ultimate. Ascension through execution."
       />
+      {error ? <ErrorBanner message={error} /> : null}
 
       <div className="grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
         <Card className="relative overflow-hidden">
           <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-cyan/70 to-transparent" />
-          <p className="text-xs font-semibold uppercase text-ghost">Today's Execution Score</p>
+          <p className="text-xs font-semibold uppercase text-ghost">Today&apos;s Execution Score</p>
           {current ? (
             <>
               <div className={`mt-3 text-6xl font-semibold tabular-nums ${scoreTone(current.execution_score)}`}>
@@ -68,7 +72,7 @@ export default function DashboardPage() {
             </div>
           )}
           <Link href="/checkin" className="primary-button mt-5 w-full sm:w-auto">
-            Log Today's Proof
+            Log Today&apos;s Proof
           </Link>
           <Link href="/memory-graph" className="secondary-button mt-3 w-full sm:ml-2 sm:mt-5 sm:w-auto">
             View Memory Graph

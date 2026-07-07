@@ -3,41 +3,16 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AppShell } from "@/components/AppShell";
-import { Card, EmptyState, PageTitle } from "@/components/ui";
+import { Card, EmptyState, ErrorBanner, PageTitle } from "@/components/ui";
+import { numberFields, textFields, toggleFields } from "@/lib/checkin-fields";
 import { getLogByDate, saveLog } from "@/lib/data";
+import { normalizeNumber, normalizeText } from "@/lib/form";
 import { calculateScores, emptyLog } from "@/lib/scoring";
 import type { DailyLog } from "@/lib/types";
 
 const today = () => new Date().toISOString().slice(0, 10);
 
 type Key = keyof DailyLog;
-
-const numberFields: Array<[Key, string, number?, number?]> = [
-  ["sleep_hours", "Sleep hours", 0, 16],
-  ["workout_quality", "Workout quality", 1, 10],
-  ["protein_grams", "Protein grams", 0],
-  ["water_litres", "Water litres", 0],
-  ["weight_kg", "Weight kg", 0],
-  ["steps", "Steps", 0],
-  ["dsa_minutes", "DSA minutes", 0],
-  ["nirmiq_minutes", "NIRMIQ minutes", 0],
-  ["academic_minutes", "Academic study minutes", 0],
-  ["deep_work_minutes", "Deep work minutes", 0],
-  ["masturbation_count", "Masturbation count", 0],
-  ["reels_minutes", "Reels/shorts minutes", 0],
-  ["youtube_minutes", "YouTube minutes", 0],
-  ["money_earned", "Money earned", 0],
-  ["money_spent", "Money spent", 0],
-  ["mood", "Mood", 1, 10],
-  ["self_respect", "Self-respect", 1, 10]
-];
-
-const textFields: Array<[Key, string, string]> = [
-  ["social_action", "Social action", "One social rep you took"],
-  ["hardest_task_done", "Hardest task done today", "The one task that mattered"],
-  ["biggest_distraction", "Biggest distraction", "What pulled you off path"],
-  ["notes", "Notes", "Brutal truth, no stories"]
-];
 
 function Toggle({
   label,
@@ -67,11 +42,14 @@ export default function CheckinPage() {
   const router = useRouter();
   const [log, setLog] = useState<DailyLog>(emptyLog(today()));
   const [saved, setSaved] = useState("");
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    getLogByDate(today()).then((existing) => {
-      if (existing) setLog(existing);
-    });
+    getLogByDate(today())
+      .then((existing) => {
+        if (existing) setLog(existing);
+      })
+      .catch((caught) => setError(caught instanceof Error ? caught.message : "Unable to load today's log."));
   }, []);
 
   const set = <T extends Key>(key: T, value: DailyLog[T]) => setLog((current) => ({ ...current, [key]: value }));
@@ -79,9 +57,14 @@ export default function CheckinPage() {
 
   async function submit(event: FormEvent) {
     event.preventDefault();
-    await saveLog(log);
-    setSaved("Proof logged.");
-    setTimeout(() => router.push("/dashboard"), 450);
+    setError("");
+    try {
+      await saveLog(log);
+      setSaved("Proof logged.");
+      setTimeout(() => router.push("/dashboard"), 450);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Unable to save proof.");
+    }
   }
 
   return (
@@ -91,6 +74,7 @@ export default function CheckinPage() {
         title="Log Today's Proof"
         subtitle="No stories. No excuses. Only what happened."
       />
+      {error ? <ErrorBanner message={error} /> : null}
 
       <form onSubmit={submit} className="grid gap-4 lg:grid-cols-[1fr_18rem]">
         <div className="grid gap-4">
@@ -113,14 +97,7 @@ export default function CheckinPage() {
 
           <Card>
             <div className="grid gap-2 sm:grid-cols-2">
-              {[
-                ["Gym done", "gym_done"],
-                ["Diet followed", "diet_followed"],
-                ["Porn relapse", "porn_relapse"],
-                ["Smoking", "smoking"],
-                ["Grooming done", "grooming_done"],
-                ["Skincare done", "skincare_done"]
-              ].map(([label, key]) => (
+              {toggleFields.map(([key, label]) => (
                 <Toggle
                   key={key}
                   label={label}
@@ -143,7 +120,7 @@ export default function CheckinPage() {
                     min={min}
                     max={max}
                     value={Number(log[key])}
-                    onChange={(e) => set(key, Number(e.target.value) as never)}
+                    onChange={(e) => set(key, normalizeNumber(e.target.value) as never)}
                   />
                 </label>
               ))}
@@ -160,14 +137,14 @@ export default function CheckinPage() {
                       className="field min-h-28"
                       value={String(log[key])}
                       placeholder={placeholder}
-                      onChange={(e) => set(key, e.target.value as never)}
+                      onChange={(e) => set(key, normalizeText(e.target.value) as never)}
                     />
                   ) : (
                     <input
                       className="field"
                       value={String(log[key])}
                       placeholder={placeholder}
-                      onChange={(e) => set(key, e.target.value as never)}
+                      onChange={(e) => set(key, normalizeText(e.target.value) as never)}
                     />
                   )}
                 </label>

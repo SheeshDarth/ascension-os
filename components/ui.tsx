@@ -39,3 +39,11 @@ export function EmptyState({ children }: { children: ReactNode }) {
     </div>
   );
 }
+
+export function ErrorBanner({ message }: { message: string }) {
+  return (
+    <div className="mb-4 rounded-lg border border-red-900/70 bg-red-950/30 p-4 text-sm text-red-200" role="alert">
+      {message}
+    </div>
+  );
+}

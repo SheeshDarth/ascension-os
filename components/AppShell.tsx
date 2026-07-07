@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
+import { authEnabled, getSessionUser, signOut } from "@/lib/auth";
 
 const nav = [
   { href: "/dashboard", label: "Dashboard" },
@@ -14,6 +16,19 @@ const nav = [
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  const [email, setEmail] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!authEnabled()) return;
+    getSessionUser()
+      .then((user) => setEmail(user?.email ?? null))
+      .catch(() => setEmail(null));
+  }, []);
+
+  async function handleSignOut() {
+    await signOut();
+    window.location.href = "/login";
+  }
 
   return (
     <div className="min-h-dvh pb-24 text-text md:pb-0">
@@ -23,9 +38,22 @@ export function AppShell({ children }: { children: ReactNode }) {
             <div className="text-sm font-semibold uppercase text-text">AscensionOS</div>
             <div className="text-xs text-ghost">Proof over potential.</div>
           </Link>
-          <Link href="/settings" className="secondary-button px-3" aria-label="Open settings">
-            Settings
-          </Link>
+          <div className="flex items-center gap-2">
+            {authEnabled() ? (
+              email ? (
+                <button type="button" className="secondary-button px-3" onClick={handleSignOut}>
+                  Sign out
+                </button>
+              ) : (
+                <Link href="/login" className="secondary-button px-3">
+                  Login
+                </Link>
+              )
+            ) : null}
+            <Link href="/settings" className="secondary-button px-3" aria-label="Open settings">
+              Settings
+            </Link>
+          </div>
         </div>
       </header>
 

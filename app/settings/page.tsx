@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { AppShell } from "@/components/AppShell";
-import { Card, PageTitle } from "@/components/ui";
+import { Card, ErrorBanner, PageTitle } from "@/components/ui";
 import { getSettings, saveSettings } from "@/lib/data";
 import type { Settings } from "@/lib/types";
 
@@ -19,17 +19,26 @@ const fields: Array<[keyof Settings, string, string]> = [
 export default function SettingsPage() {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [saved, setSaved] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    setSettings(getSettings());
+    getSettings()
+      .then(setSettings)
+      .catch((caught) => setError(caught instanceof Error ? caught.message : "Unable to load settings."));
   }, []);
 
-  function submit(event: FormEvent) {
+  async function submit(event: FormEvent) {
     event.preventDefault();
     if (!settings) return;
-    saveSettings(settings);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 1500);
+    setError("");
+    try {
+      const savedSettings = await saveSettings(settings);
+      setSettings(savedSettings);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 1500);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Unable to save settings.");
+    }
   }
 
   if (!settings) return null;
@@ -41,6 +50,7 @@ export default function SettingsPage() {
         title="Settings"
         subtitle="Simple targets for the current season. Theme locked to dark for now."
       />
+      {error ? <ErrorBanner message={error} /> : null}
 
       <form onSubmit={submit}>
         <Card>

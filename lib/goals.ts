@@ -1,6 +1,8 @@
-import type { Goal, Settings } from "@/lib/types";
+import type { Goal, Settings } from "./types";
 
 export const defaultSettings: Settings = {
+  id: undefined,
+  user_id: undefined,
   user_name: "Siddharth",
   target_weight: 74,
   dsa_daily_target: 45,

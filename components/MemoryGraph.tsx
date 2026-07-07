@@ -1,63 +1,10 @@
 "use client";
 
 import { scoreTone, statusForScore } from "@/lib/scoring";
+import { buildMemoryStats, type GraphRange } from "@/lib/memory";
 import type { DailyLog } from "@/lib/types";
 
-type DomainNode = {
-  label: string;
-  value: number;
-  detail: string;
-  x: number;
-  y: number;
-};
-
 const clamp = (value: number, min = 0, max = 100) => Math.max(min, Math.min(max, value));
-const avg = (values: number[]) => (values.length ? Math.round(values.reduce((total, value) => total + value, 0) / values.length) : 0);
-
-function weeklyNodes(logs: DailyLog[]): DomainNode[] {
-  const gymDays = logs.filter((log) => log.gym_done).length;
-  const dietDays = logs.filter((log) => log.diet_followed).length;
-  const cleanDays = logs.filter((log) => !log.porn_relapse).length;
-  const count = Math.max(logs.length, 1);
-
-  return [
-    {
-      label: "Physique",
-      value: avg(logs.map((log) => log.physique_score)),
-      detail: `${gymDays}/${count} gym days`,
-      x: 50,
-      y: 14
-    },
-    {
-      label: "Career",
-      value: avg(logs.map((log) => log.career_score)),
-      detail: `${logs.reduce((total, log) => total + log.dsa_minutes + log.nirmiq_minutes, 0)}m DSA+NIRMIQ`,
-      x: 84,
-      y: 35
-    },
-    {
-      label: "Discipline",
-      value: avg(logs.map((log) => log.discipline_score)),
-      detail: `${dietDays}/${count} diet days`,
-      x: 72,
-      y: 78
-    },
-    {
-      label: "Dopamine",
-      value: avg(logs.map((log) => log.dopamine_score)),
-      detail: `${cleanDays}/${count} clean days`,
-      x: 28,
-      y: 78
-    },
-    {
-      label: "Self-Respect",
-      value: avg(logs.map((log) => log.self_respect_score)),
-      detail: `${avg(logs.map((log) => log.self_respect))}/10 rating`,
-      x: 16,
-      y: 35
-    }
-  ];
-}
 
 function nodeColor(value: number) {
   if (value >= 75) return "#6EE7B7";
@@ -67,7 +14,7 @@ function nodeColor(value: number) {
 }
 
 function Timeline({ logs }: { logs: DailyLog[] }) {
-  const sorted = [...logs].sort((a, b) => a.date.localeCompare(b.date)).slice(-14);
+  const sorted = [...logs].sort((a, b) => a.date.localeCompare(b.date));
   const points = sorted.map((log, index) => {
     const x = sorted.length <= 1 ? 50 : (index / (sorted.length - 1)) * 100;
     const y = 100 - clamp(log.execution_score);
@@ -124,17 +71,18 @@ function Timeline({ logs }: { logs: DailyLog[] }) {
   );
 }
 
-function NodeGraph({ logs }: { logs: DailyLog[] }) {
-  const nodes = weeklyNodes(logs);
-  const execution = avg(logs.map((log) => log.execution_score));
+function NodeGraph({ logs, range }: { logs: DailyLog[]; range: GraphRange }) {
+  const stats = buildMemoryStats(logs, range);
+  const nodes = stats.nodes;
+  const execution = stats.averageExecution;
 
   return (
     <div className="panel p-4">
       <div className="mb-3">
         <p className="text-sm font-semibold text-text">Memory Graph</p>
-        <p className="text-xs text-ghost">Weekly performance map. Strong nodes feed identity. Weak nodes leak proof.</p>
+        <p className="text-xs text-ghost">{range}-day performance map. Strong nodes feed identity. Weak nodes leak proof.</p>
       </div>
-      {logs.length ? (
+      {stats.logs.length ? (
         <div className="grid gap-4 lg:grid-cols-[1fr_18rem]">
           <svg
             viewBox="0 0 100 100"
@@ -190,7 +138,21 @@ function NodeGraph({ logs }: { logs: DailyLog[] }) {
               <p className={`text-4xl font-semibold tabular-nums ${scoreTone(execution)}`}>{execution}</p>
               <p className="mt-1 text-sm text-muted">{statusForScore(execution)}</p>
             </div>
-            {nodes
+            <div className="grid grid-cols-2 gap-2">
+              <div className="rounded-md border border-line bg-panel2 p-3">
+                <p className="text-xs uppercase text-ghost">Current streak</p>
+                <p className="mt-1 text-xl font-semibold text-text">{stats.currentStreak}</p>
+              </div>
+              <div className="rounded-md border border-line bg-panel2 p-3">
+                <p className="text-xs uppercase text-ghost">Best streak</p>
+                <p className="mt-1 text-xl font-semibold text-text">{stats.bestStreak}</p>
+              </div>
+              <div className="col-span-2 rounded-md border border-line bg-panel2 p-3">
+                <p className="text-xs uppercase text-ghost">Weakest domain</p>
+                <p className="mt-1 text-xl font-semibold text-amber">{stats.weakestDomain}</p>
+              </div>
+            </div>
+            {[...nodes]
               .sort((a, b) => a.value - b.value)
               .map((node) => (
                 <div key={node.label} className="rounded-md border border-line bg-panel2 p-3">
@@ -214,12 +176,14 @@ function NodeGraph({ logs }: { logs: DailyLog[] }) {
   );
 }
 
-export function MemoryGraph({ logs }: { logs: DailyLog[] }) {
+export function MemoryGraph({ logs, range }: { logs: DailyLog[]; range: GraphRange }) {
+  const stats = buildMemoryStats(logs, range);
+
   return (
     <div className="grid gap-4">
-      <NodeGraph logs={logs.slice(0, 7)} />
-      <Timeline logs={logs} />
-      {logs.length ? (
+      <NodeGraph logs={logs} range={range} />
+      <Timeline logs={stats.logs} />
+      {stats.logs.length ? (
         <div className="overflow-x-auto rounded-lg border border-line">
           <table className="w-full min-w-[44rem] border-collapse text-left text-sm">
             <caption className="sr-only">Daily score table backing the memory graph</caption>
@@ -235,9 +199,8 @@ export function MemoryGraph({ logs }: { logs: DailyLog[] }) {
               </tr>
             </thead>
             <tbody>
-              {[...logs]
+              {[...stats.logs]
                 .sort((a, b) => b.date.localeCompare(a.date))
-                .slice(0, 14)
                 .map((log) => (
                   <tr key={log.date} className="border-t border-line text-muted">
                     <td className="px-3 py-2 text-text">{log.date}</td>

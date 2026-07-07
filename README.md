@@ -48,10 +48,15 @@ If Supabase keys are missing, the app uses localStorage as a development fallbac
 1. Create a new Supabase project.
 2. Open the SQL editor.
 3. Run `supabase/schema.sql`.
-4. Copy the project URL and anon key into `.env.local`.
-5. Restart the dev server.
+4. Enable email magic-link auth in Supabase Auth settings.
+5. Add your local and deployed URLs to Supabase Auth redirect URLs.
+6. Copy the project URL and anon key into `.env.local`.
+7. Restart the dev server.
 
 The app creates seed goals automatically when the `goals` table is empty.
+All Supabase tables are protected with Row Level Security and scoped to the signed-in user.
+
+For an existing prototype database, use `supabase/migrations/001_private_hardening.sql` instead. Read the comments at the top first; old anonymous rows need a one-time `user_id` backfill before `not null` constraints can be applied.
 
 ## Environment Variables
 
@@ -70,7 +75,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=
 
 ## Daily Use
 
-Use `/checkin` once per day. Log only what happened:
+Use `/login` to send yourself a Supabase magic link, then use `/checkin` once per day. Log only what happened:
 
 - Gym, diet, sleep, physique basics
 - DSA, NIRMIQ, academics, deep work
@@ -91,13 +96,15 @@ The app calculates:
 
 Open `/memory-graph` to visualize performance from both phone and laptop. It includes:
 
-- A weekly node graph connecting Execution to Physique, Career, Discipline, Dopamine Control, and Self-Respect
+- 7, 30, and 90 day performance windows
+- A node graph connecting Execution to Physique, Career, Discipline, Dopamine Control, and Self-Respect
 - A recent execution timeline
+- Trend cards for average execution, current streak, best streak, and weakest domain
 - A score table for accessibility and quick scanning
 
 ## Weekly Review Export
 
-Open `/weekly-review` and press `Export Weekly Review for ChatGPT`. The app copies a markdown report with scores, totals, best/worst days, patterns, and next-week commitments.
+Open `/weekly-review` and press `Export Weekly Review for ChatGPT`. The app saves the weekly export to Supabase when configured, then copies a markdown report with scores, totals, best/worst days, patterns, and next-week commitments.
 
 Paste it into ChatGPT and ask for:
 
@@ -109,12 +116,20 @@ Brutal review / plan adjustment / discipline reset
 
 This app stores personal data. Do not make the database public.
 
-For the MVP, Row Level Security is disabled in the provided schema to keep setup simple. Before public use:
+The provided schema enables Row Level Security and owner-only policies. Before sharing the app more broadly:
 
-- Add Supabase Auth.
-- Enable Row Level Security on all tables.
-- Add policies scoped to `auth.uid()`.
-- Make `user_id` required and tie every row to the authenticated user.
+- Keep the repo and Supabase project private.
+- Confirm Supabase Auth redirect URLs only include trusted domains.
+- Never expose service-role keys in the browser.
+
+## Quality Checks
+
+```bash
+npm run lint
+npm run test
+npm run build
+npm run check
+```
 
 ## Core Rule
 

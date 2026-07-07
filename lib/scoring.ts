@@ -1,7 +1,10 @@
-import type { DailyLog } from "@/lib/types";
+import type { DailyLog } from "./types";
+
+export const SCORE_FORMULA_VERSION = 1;
 
 export const emptyLog = (date = new Date().toISOString().slice(0, 10)): DailyLog => ({
   date,
+  score_formula_version: SCORE_FORMULA_VERSION,
   wake_time: "",
   sleep_time: "",
   sleep_hours: 0,
@@ -89,6 +92,7 @@ export function calculateScores(input: DailyLog): DailyLog {
 
   return {
     ...input,
+    score_formula_version: input.score_formula_version || SCORE_FORMULA_VERSION,
     execution_score: execution,
     discipline_score: discipline,
     career_score: career,

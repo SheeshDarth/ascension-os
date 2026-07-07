@@ -2,26 +2,35 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/AppShell";
-import { Card, EmptyState, Metric, PageTitle } from "@/components/ui";
-import { getLogs } from "@/lib/data";
+import { Card, EmptyState, ErrorBanner, Metric, PageTitle } from "@/components/ui";
+import { getLogs, saveWeeklyReview } from "@/lib/data";
 import { buildWeeklyReview, weeklyMarkdown } from "@/lib/weekly";
 import type { DailyLog } from "@/lib/types";
 
 export default function WeeklyReviewPage() {
   const [logs, setLogs] = useState<DailyLog[]>([]);
   const [copied, setCopied] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    getLogs().then(setLogs);
+    getLogs()
+      .then(setLogs)
+      .catch((caught) => setError(caught instanceof Error ? caught.message : "Unable to load weekly review."));
   }, []);
 
   const review = useMemo(() => buildWeeklyReview(logs), [logs]);
   const markdown = weeklyMarkdown(review);
 
   async function copyReview() {
-    await navigator.clipboard.writeText(markdown);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1800);
+    setError("");
+    try {
+      await saveWeeklyReview(review, markdown);
+      await navigator.clipboard.writeText(markdown);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Unable to export weekly review.");
+    }
   }
 
   return (
@@ -31,6 +40,7 @@ export default function WeeklyReviewPage() {
         title="Weekly Review"
         subtitle="No reset fantasy. Only proof, patterns, and next week's non-negotiables."
       />
+      {error ? <ErrorBanner message={error} /> : null}
 
       {review.logs.length < 2 ? (
         <EmptyState>Not enough data. Live the week first.</EmptyState>
@@ -104,7 +114,7 @@ export default function WeeklyReviewPage() {
             <p className="mt-2 text-sm text-muted">{review.brutalPattern}</p>
           </div>
           <div>
-            <p className="text-xs font-semibold uppercase text-ghost">Next week's 3 non-negotiables</p>
+            <p className="text-xs font-semibold uppercase text-ghost">Next week&apos;s 3 non-negotiables</p>
             <ul className="mt-2 grid gap-1 text-sm text-muted">
               {review.nonNegotiables.map((item) => (
                 <li key={item}>{item}</li>

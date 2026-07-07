@@ -1,4 +1,4 @@
-import type { DailyLog, WeeklyReview } from "@/lib/types";
+import type { DailyLog, WeeklyReview } from "./types";
 
 const average = (values: number[]) =>
   values.length ? Math.round(values.reduce((total, value) => total + value, 0) / values.length) : 0;

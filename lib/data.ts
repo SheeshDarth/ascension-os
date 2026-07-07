@@ -3,11 +3,19 @@
 import { seedGoals, defaultSettings } from "@/lib/goals";
 import { calculateScores } from "@/lib/scoring";
 import { supabase } from "@/lib/supabase";
-import type { DailyLog, Goal, Settings } from "@/lib/types";
+import type { DailyLog, Goal, Settings, WeeklyReview, WeeklyReviewRow } from "@/lib/types";
 
 const LOGS_KEY = "ascensionos.daily_logs";
 const GOALS_KEY = "ascensionos.goals";
 const SETTINGS_KEY = "ascensionos.settings";
+const REVIEWS_KEY = "ascensionos.weekly_reviews";
+
+export class DataAccessError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "DataAccessError";
+  }
+}
 
 const browser = () => typeof window !== "undefined";
 
@@ -25,10 +33,28 @@ function sortLogs(logs: DailyLog[]) {
   return logs.sort((a, b) => b.date.localeCompare(a.date));
 }
 
+async function requireUserId() {
+  if (!supabase) return undefined;
+  const { data, error } = await supabase.auth.getUser();
+  if (error) throw new DataAccessError(error.message);
+  if (!data.user) throw new DataAccessError("Sign in required. Open /login to unlock cross-device sync.");
+  return data.user.id;
+}
+
+function fail(message: string) {
+  throw new DataAccessError(message);
+}
+
 export async function getLogs(): Promise<DailyLog[]> {
   if (supabase) {
-    const { data, error } = await supabase.from("daily_logs").select("*").order("date", { ascending: false });
-    if (!error && data) return data as DailyLog[];
+    const userId = await requireUserId();
+    const { data, error } = await supabase
+      .from("daily_logs")
+      .select("*")
+      .eq("user_id", userId)
+      .order("date", { ascending: false });
+    if (error) fail(error.message);
+    return (data ?? []) as DailyLog[];
   }
   return sortLogs(readLocal<DailyLog[]>(LOGS_KEY, []));
 }
@@ -45,8 +71,11 @@ export async function saveLog(log: DailyLog): Promise<DailyLog> {
   });
 
   if (supabase) {
-    const { data, error } = await supabase.from("daily_logs").upsert(scored, { onConflict: "date" }).select().single();
-    if (!error && data) return data as DailyLog;
+    const userId = await requireUserId();
+    const payload = { ...scored, user_id: userId };
+    const { data, error } = await supabase.from("daily_logs").upsert(payload, { onConflict: "user_id,date" }).select().single();
+    if (error) fail(error.message);
+    return data as DailyLog;
   }
 
   const logs = readLocal<DailyLog[]>(LOGS_KEY, []);
@@ -59,11 +88,21 @@ export async function saveLog(log: DailyLog): Promise<DailyLog> {
 
 export async function getGoals(): Promise<Goal[]> {
   if (supabase) {
-    const { data, error } = await supabase.from("goals").select("*").order("created_at", { ascending: true });
-    if (!error && data && data.length > 0) return data as Goal[];
-    if (!error && data && data.length === 0) {
-      const { data: seeded } = await supabase.from("goals").insert(seedGoals).select();
-      if (seeded) return seeded as Goal[];
+    const userId = await requireUserId();
+    const { data, error } = await supabase
+      .from("goals")
+      .select("*")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: true });
+    if (error) fail(error.message);
+    if (data && data.length > 0) return data as Goal[];
+    if (data && data.length === 0) {
+      const { data: seeded, error: seedError } = await supabase
+        .from("goals")
+        .insert(seedGoals.map((goal) => ({ ...goal, user_id: userId })))
+        .select();
+      if (seedError) fail(seedError.message);
+      return (seeded ?? []) as Goal[];
     }
   }
 
@@ -77,8 +116,10 @@ export async function getGoals(): Promise<Goal[]> {
 export async function saveGoal(goal: Goal): Promise<Goal> {
   const payload = { ...goal, updated_at: new Date().toISOString() };
   if (supabase) {
-    const { data, error } = await supabase.from("goals").upsert(payload).select().single();
-    if (!error && data) return data as Goal;
+    const userId = await requireUserId();
+    const { data, error } = await supabase.from("goals").upsert({ ...payload, user_id: userId }).select().single();
+    if (error) fail(error.message);
+    return data as Goal;
   }
 
   const goals = await getGoals();
@@ -89,10 +130,60 @@ export async function saveGoal(goal: Goal): Promise<Goal> {
   return { ...payload, id };
 }
 
-export function getSettings(): Settings {
+export async function getSettings(): Promise<Settings> {
+  if (supabase) {
+    const userId = await requireUserId();
+    const { data, error } = await supabase.from("settings").select("*").eq("user_id", userId).maybeSingle();
+    if (error) fail(error.message);
+    if (data) return data as Settings;
+    const { data: inserted, error: insertError } = await supabase
+      .from("settings")
+      .insert({ ...defaultSettings, user_id: userId })
+      .select()
+      .single();
+    if (insertError) fail(insertError.message);
+    return inserted as Settings;
+  }
   return readLocal<Settings>(SETTINGS_KEY, defaultSettings);
 }
 
-export function saveSettings(settings: Settings) {
+export async function saveSettings(settings: Settings) {
+  if (supabase) {
+    const userId = await requireUserId();
+    const { data, error } = await supabase
+      .from("settings")
+      .upsert({ ...settings, user_id: userId }, { onConflict: "user_id" })
+      .select()
+      .single();
+    if (error) fail(error.message);
+    return data as Settings;
+  }
   writeLocal(SETTINGS_KEY, settings);
+  return settings;
+}
+
+export async function saveWeeklyReview(review: WeeklyReview, markdown: string): Promise<WeeklyReviewRow> {
+  const payload = {
+    week_start: review.weekStart,
+    week_end: review.weekEnd,
+    markdown_export: markdown
+  };
+
+  if (supabase) {
+    const userId = await requireUserId();
+    const { data, error } = await supabase
+      .from("weekly_reviews")
+      .upsert({ ...payload, user_id: userId }, { onConflict: "user_id,week_start" })
+      .select()
+      .single();
+    if (error) fail(error.message);
+    return data as WeeklyReviewRow;
+  }
+
+  const reviews = readLocal<WeeklyReviewRow[]>(REVIEWS_KEY, []);
+  const next = reviews.filter((item) => item.week_start !== payload.week_start);
+  const saved = { ...payload, id: crypto.randomUUID(), created_at: new Date().toISOString() };
+  next.push(saved);
+  writeLocal(REVIEWS_KEY, next);
+  return saved;
 }

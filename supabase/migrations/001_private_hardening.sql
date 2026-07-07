@@ -1,66 +1,20 @@
-create extension if not exists "pgcrypto";
+-- Private production hardening migration for an existing AscensionOS prototype database.
+--
+-- Before running this migration on a database with existing anonymous rows:
+-- 1. Create/sign in as your Supabase Auth user.
+-- 2. Copy that user's auth.users.id.
+-- 3. Replace YOUR_AUTH_USER_ID below and uncomment the three backfill statements.
+--
+-- update daily_logs set user_id = 'YOUR_AUTH_USER_ID' where user_id is null;
+-- update goals set user_id = 'YOUR_AUTH_USER_ID' where user_id is null;
+-- update weekly_reviews set user_id = 'YOUR_AUTH_USER_ID' where user_id is null;
 
-create table if not exists daily_logs (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references auth.users(id) on delete cascade,
-  date date not null,
-  score_formula_version integer not null default 1,
-  wake_time text,
-  sleep_time text,
-  sleep_hours numeric default 0,
-  gym_done boolean default false,
-  workout_quality integer default 5,
-  diet_followed boolean default false,
-  protein_grams integer default 0,
-  water_litres numeric default 0,
-  weight_kg numeric default 0,
-  steps integer default 0,
-  dsa_minutes integer default 0,
-  nirmiq_minutes integer default 0,
-  academic_minutes integer default 0,
-  deep_work_minutes integer default 0,
-  porn_relapse boolean default false,
-  masturbation_count integer default 0,
-  reels_minutes integer default 0,
-  youtube_minutes integer default 0,
-  smoking boolean default false,
-  money_earned integer default 0,
-  money_spent integer default 0,
-  grooming_done boolean default false,
-  skincare_done boolean default false,
-  social_action text,
-  hardest_task_done text,
-  biggest_distraction text,
-  mood integer default 5,
-  self_respect integer default 5,
-  notes text,
-  execution_score integer default 0,
-  discipline_score integer default 0,
-  career_score integer default 0,
-  dopamine_score integer default 0,
-  physique_score integer default 0,
-  self_respect_score integer default 0,
-  created_at timestamp with time zone default now(),
-  updated_at timestamp with time zone default now()
-);
+alter table daily_logs add column if not exists score_formula_version integer not null default 1;
+alter table daily_logs drop constraint if exists daily_logs_date_key;
+alter table daily_logs alter column user_id set not null;
 
-create unique index if not exists daily_logs_user_date_idx on daily_logs(user_id, date);
-
-create table if not exists goals (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references auth.users(id) on delete cascade,
-  category text not null,
-  title text not null,
-  target text not null,
-  current_value text,
-  deadline date,
-  status text default 'Active',
-  notes text,
-  created_at timestamp with time zone default now(),
-  updated_at timestamp with time zone default now()
-);
-
-create index if not exists goals_user_id_idx on goals(user_id);
+alter table goals add column if not exists user_id uuid references auth.users(id) on delete cascade;
+alter table goals alter column user_id set not null;
 
 create table if not exists settings (
   id uuid primary key default gen_random_uuid(),
@@ -76,17 +30,13 @@ create table if not exists settings (
   updated_at timestamp with time zone default now()
 );
 
+alter table weekly_reviews add column if not exists user_id uuid references auth.users(id) on delete cascade;
+alter table weekly_reviews alter column user_id set not null;
+alter table weekly_reviews alter column markdown_export set not null;
+
+create unique index if not exists daily_logs_user_date_idx on daily_logs(user_id, date);
+create index if not exists goals_user_id_idx on goals(user_id);
 create unique index if not exists settings_user_id_idx on settings(user_id);
-
-create table if not exists weekly_reviews (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references auth.users(id) on delete cascade,
-  week_start date not null,
-  week_end date not null,
-  markdown_export text not null,
-  created_at timestamp with time zone default now()
-);
-
 create unique index if not exists weekly_reviews_user_week_idx on weekly_reviews(user_id, week_start);
 
 alter table daily_logs enable row level security;

@@ -1,7 +1,8 @@
 export type DailyLog = {
   id?: string;
-  user_id?: string | null;
+  user_id?: string;
   date: string;
+  score_formula_version: number;
   wake_time: string;
   sleep_time: string;
   sleep_hours: number;
@@ -43,6 +44,7 @@ export type DailyLog = {
 
 export type Goal = {
   id?: string;
+  user_id?: string;
   category: string;
   title: string;
   target: string;
@@ -55,6 +57,8 @@ export type Goal = {
 };
 
 export type Settings = {
+  id?: string;
+  user_id?: string;
   user_name: string;
   target_weight: number;
   dsa_daily_target: number;
@@ -62,6 +66,15 @@ export type Settings = {
   academic_daily_target: number;
   reels_limit: number;
   sleep_target: string;
+};
+
+export type WeeklyReviewRow = {
+  id?: string;
+  user_id?: string;
+  week_start: string;
+  week_end: string;
+  markdown_export: string;
+  created_at?: string;
 };
 
 export type WeeklyReview = {

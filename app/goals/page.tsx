@@ -2,16 +2,19 @@
 
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/AppShell";
-import { Card, PageTitle } from "@/components/ui";
+import { Card, ErrorBanner, PageTitle } from "@/components/ui";
 import { getGoals, saveGoal } from "@/lib/data";
 import type { Goal } from "@/lib/types";
 
 export default function GoalsPage() {
   const [goals, setGoals] = useState<Goal[]>([]);
   const [savedId, setSavedId] = useState<string | undefined>();
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    getGoals().then(setGoals);
+    getGoals()
+      .then(setGoals)
+      .catch((caught) => setError(caught instanceof Error ? caught.message : "Unable to load goals."));
   }, []);
 
   function update(index: number, patch: Partial<Goal>) {
@@ -19,9 +22,14 @@ export default function GoalsPage() {
   }
 
   async function persist(goal: Goal) {
-    const saved = await saveGoal(goal);
-    setSavedId(saved.id);
-    setTimeout(() => setSavedId(undefined), 1500);
+    setError("");
+    try {
+      const saved = await saveGoal(goal);
+      setSavedId(saved.id);
+      setTimeout(() => setSavedId(undefined), 1500);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Unable to save goal.");
+    }
   }
 
   return (
@@ -31,6 +39,7 @@ export default function GoalsPage() {
         title="Goals"
         subtitle="Editable direction. Execution still decides identity."
       />
+      {error ? <ErrorBanner message={error} /> : null}
 
       <div className="grid gap-4">
         {goals.map((goal, index) => (

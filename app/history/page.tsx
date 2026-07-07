@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/AppShell";
-import { Card, EmptyState, Metric, PageTitle } from "@/components/ui";
+import { Card, EmptyState, ErrorBanner, Metric, PageTitle } from "@/components/ui";
 import { getLogs } from "@/lib/data";
 import { scoreTone, statusForScore } from "@/lib/scoring";
 import type { DailyLog } from "@/lib/types";
@@ -10,9 +10,12 @@ import type { DailyLog } from "@/lib/types";
 export default function HistoryPage() {
   const [logs, setLogs] = useState<DailyLog[]>([]);
   const [openDate, setOpenDate] = useState<string | undefined>();
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    getLogs().then(setLogs);
+    getLogs()
+      .then(setLogs)
+      .catch((caught) => setError(caught instanceof Error ? caught.message : "Unable to load history."));
   }, []);
 
   return (
@@ -22,6 +25,7 @@ export default function HistoryPage() {
         title="History"
         subtitle="A clean timeline of what actually happened."
       />
+      {error ? <ErrorBanner message={error} /> : null}
 
       {!logs.length ? <EmptyState>No history. No identity. Start logging proof.</EmptyState> : null}
 
