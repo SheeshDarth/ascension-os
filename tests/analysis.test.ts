@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildAnalysisInputSummary, deterministicWeeklyAnalysis, parseAnalysisResult } from "../lib/analysis";
+import { buildAnalysisInputSummary, buildCompactAnalysisInput, deterministicWeeklyAnalysis, parseAnalysisResult } from "../lib/analysis";
 import { geminiAnalyzeWeekly } from "../lib/gemini";
 import { calculateScores, emptyLog } from "../lib/scoring";
 import { buildWeeklyReview } from "../lib/weekly";
@@ -62,5 +62,14 @@ describe("AI analysis", () => {
 
   it("builds an auditable input summary", () => {
     expect(buildAnalysisInputSummary(input())).toContain("Avg execution");
+  });
+
+  it("builds a compact cloud payload without raw daily log fields", () => {
+    const compact = buildCompactAnalysisInput(input());
+
+    expect(compact.metrics.averageExecution).toBeGreaterThan(0);
+    expect(compact.sourceDates).toContain("2026-07-06");
+    expect(JSON.stringify(compact)).not.toContain("wake_time");
+    expect(JSON.stringify(compact)).not.toContain("sleep_time");
   });
 });

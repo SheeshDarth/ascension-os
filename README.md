@@ -4,6 +4,8 @@ Proof over potential.
 
 AscensionOS is a dark, mobile-first personal transformation dashboard for Siddharth. It is built to log daily proof in under two minutes, calculate execution scores, track weekly patterns, and export a brutal weekly review for ChatGPT.
 
+The app is optimized for private self-use: it saves to a local IndexedDB cache first, queues Supabase sync when the network is unavailable, and keeps working offline on phone or laptop.
+
 ## Tech Stack
 
 - Next.js
@@ -43,6 +45,8 @@ npm run dev
 Open `http://localhost:3000/dashboard`.
 
 If Supabase keys are missing, the app uses localStorage as a development fallback. For real phone access and persistence across devices, configure Supabase.
+
+When Supabase is configured, AscensionOS still keeps a local IndexedDB cache. If the cloud request fails, reads fall back to the last local cache and writes are queued for the next online sync. A small status strip appears when offline, when sync is pending, or when the last sync attempt failed.
 
 ## Supabase Setup
 
@@ -118,7 +122,11 @@ Open `/settings` to choose the AI provider:
 - `Deterministic offline`: rule-based analysis from logs and weekly scores.
 - `Gemini cloud`: server-side Gemini analysis when `GEMINI_API_KEY` exists and cloud consent is enabled.
 
-The weekly review page shows a data preview before analysis. Gemini is never called from browser code. If Gemini is unavailable, missing, offline, or returns invalid output, AscensionOS falls back to deterministic analysis. AI analysis history can be exported or deleted from settings, and each analysis can be rated useful/not useful.
+The weekly review page shows a data preview before analysis. Gemini is never called from browser code. Cloud prompts use a compact weekly digest instead of raw daily logs to preserve free quota and reduce data exposure. If Gemini is unavailable, missing, offline, or returns invalid output, AscensionOS falls back to deterministic analysis. AI analysis history can be exported or deleted from settings, and each analysis can be rated useful/not useful.
+
+## Local Backup
+
+Open `/settings` to export the full local cache as JSON or import a previous backup. This is intended as the zero-cost escape hatch if a free-tier provider pauses, fails, or needs to be replaced.
 
 Paste it into ChatGPT and ask for:
 

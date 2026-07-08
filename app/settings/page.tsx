@@ -3,7 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { Card, ErrorBanner, PageTitle } from "@/components/ui";
-import { deleteAiAnalyses, getAiAnalyses, getSettings, saveSettings } from "@/lib/data";
+import { deleteAiAnalyses, exportBackup, getAiAnalyses, getSettings, importBackup, saveSettings } from "@/lib/data";
 import type { Settings } from "@/lib/types";
 
 type EditableSettingKey =
@@ -30,6 +30,8 @@ export default function SettingsPage() {
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
   const [exportText, setExportText] = useState("");
+  const [backupText, setBackupText] = useState("");
+  const [importText, setImportText] = useState("");
 
   useEffect(() => {
     getSettings()
@@ -70,6 +72,26 @@ export default function SettingsPage() {
       setTimeout(() => setSaved(false), 1500);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Unable to delete AI history.");
+    }
+  }
+
+  async function exportAllData() {
+    setError("");
+    try {
+      setBackupText(JSON.stringify(await exportBackup(), null, 2));
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Unable to export backup.");
+    }
+  }
+
+  async function importAllData() {
+    setError("");
+    try {
+      await importBackup(importText);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 1500);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Unable to import backup.");
     }
   }
 
@@ -122,7 +144,7 @@ export default function SettingsPage() {
             <div>
               <p className="text-sm font-semibold text-text">AI Analysis</p>
               <p className="mt-1 text-sm leading-6 text-muted">
-                Gemini only runs after consent. AscensionOS sends weekly logs, scores, goals, and recent memory items for analysis. Deterministic mode stays local and uses rule-based insights.
+                Gemini only runs after consent. AscensionOS sends a compact weekly summary with scores, goals, and recent memory labels. Deterministic mode stays local and uses rule-based insights.
               </p>
             </div>
             <label className="grid gap-2">
@@ -161,6 +183,39 @@ export default function SettingsPage() {
               <label className="grid gap-2">
                 <span className="label">AI history export</span>
                 <textarea className="field min-h-64 font-mono text-xs" value={exportText} readOnly />
+              </label>
+            ) : null}
+          </div>
+        </Card>
+
+        <Card className="mt-4">
+          <div className="grid gap-4">
+            <div>
+              <p className="text-sm font-semibold text-text">Local Backup</p>
+              <p className="mt-1 text-sm leading-6 text-muted">
+                Export the full local cache as JSON or restore a previous backup. This works without paid storage.
+              </p>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <button type="button" className="secondary-button" onClick={exportAllData}>
+                Export Full Backup
+              </button>
+              <button type="button" className="secondary-button" onClick={importAllData} disabled={!importText.trim()}>
+                Import Backup
+              </button>
+            </div>
+            <label className="grid gap-2">
+              <span className="label">Paste backup JSON</span>
+              <textarea
+                className="field min-h-36 font-mono text-xs"
+                value={importText}
+                onChange={(event) => setImportText(event.target.value)}
+              />
+            </label>
+            {backupText ? (
+              <label className="grid gap-2">
+                <span className="label">Full backup export</span>
+                <textarea className="field min-h-64 font-mono text-xs" value={backupText} readOnly />
               </label>
             ) : null}
           </div>

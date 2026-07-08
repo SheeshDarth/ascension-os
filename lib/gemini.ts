@@ -1,4 +1,4 @@
-import { buildAnalysisInputSummary, deterministicWeeklyAnalysis, parseAnalysisResult } from "./analysis";
+import { buildAnalysisInputSummary, buildCompactAnalysisInput, deterministicWeeklyAnalysis, parseAnalysisResult } from "./analysis";
 import type { AnalysisInput, AnalysisResult } from "./types";
 
 function geminiPrompt(input: AnalysisInput) {
@@ -28,8 +28,8 @@ Rules:
 Input summary:
 ${buildAnalysisInputSummary(input)}
 
-Full input JSON:
-${JSON.stringify(input)}`;
+Compact input JSON:
+${JSON.stringify(buildCompactAnalysisInput(input))}`;
 }
 
 export async function geminiAnalyzeWeekly(input: AnalysisInput): Promise<AnalysisResult> {

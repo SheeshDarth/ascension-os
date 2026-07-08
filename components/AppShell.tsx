@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
+import { SyncStatus } from "@/components/SyncStatus";
 import { authEnabled, getSessionUser, signOut } from "@/lib/auth";
 
 const nav = [
@@ -55,6 +56,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             </Link>
           </div>
         </div>
+        <SyncStatus />
       </header>
 
       <div className="mx-auto grid max-w-6xl gap-6 px-4 py-5 md:grid-cols-[13rem_1fr] md:py-8">

@@ -44,6 +44,70 @@ export function buildAnalysisInputSummary(input: AnalysisInput) {
   ].join(" | ");
 }
 
+export function buildCompactAnalysisInput(input: AnalysisInput) {
+  const review = input.weeklyReview;
+  return {
+    weekStart: input.weekStart,
+    weekEnd: input.weekEnd,
+    sourceDates: input.logs.map((log) => log.date),
+    metrics: {
+      logs: input.logs.length,
+      averageExecution: review.averageExecution,
+      averageDiscipline: review.averageDiscipline,
+      averageCareer: review.averageCareer,
+      averageDopamine: review.averageDopamine,
+      averagePhysique: review.averagePhysique,
+      averageSelfRespect: review.averageSelfRespect,
+      gymDays: review.gymDays,
+      dietDays: review.dietDays,
+      totalDsa: review.totalDsa,
+      totalNirmiq: review.totalNirmiq,
+      totalAcademic: review.totalAcademic,
+      totalDeepWork: review.totalDeepWork,
+      relapseDays: review.relapseDays,
+      averageReels: review.averageReels,
+      smokingDays: review.smokingDays,
+      moneyEarned: review.moneyEarned,
+      moneySpent: review.moneySpent
+    },
+    bestDay: review.bestDay
+      ? {
+          date: review.bestDay.date,
+          executionScore: review.bestDay.execution_score,
+          hardestTask: review.bestDay.hardest_task_done
+        }
+      : null,
+    worstDay: review.worstDay
+      ? {
+          date: review.worstDay.date,
+          executionScore: review.worstDay.execution_score,
+          biggestDistraction: review.worstDay.biggest_distraction
+        }
+      : null,
+    patterns: {
+      repeatedDistraction: review.repeatedDistraction,
+      biggestWin: review.biggestWin,
+      biggestFailure: review.biggestFailure,
+      brutalPattern: review.brutalPattern,
+      nonNegotiables: review.nonNegotiables
+    },
+    goals: input.goals.map((goal) => ({
+      category: goal.category,
+      title: goal.title,
+      target: goal.target,
+      currentValue: goal.current_value,
+      deadline: goal.deadline,
+      status: goal.status
+    })),
+    memoryItems: input.memoryItems.slice(0, 10).map((item) => ({
+      sourceType: item.source_type,
+      sourceDate: item.source_date,
+      title: item.title,
+      tags: item.tags_json
+    }))
+  };
+}
+
 export function deterministicWeeklyAnalysis(input: AnalysisInput, caveats: string[] = []): AnalysisResult {
   const review = input.weeklyReview;
   const best = topBy(input.logs, (log) => log.execution_score);
