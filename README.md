@@ -110,6 +110,10 @@ Open `/memory-graph` to visualize performance from both phone and laptop. It inc
 - Trend cards for average execution, current streak, best streak, and weakest domain
 - A score table for accessibility and quick scanning
 
+## Visualization MCP
+
+For future experimental views, Codex is configured with the AntV chart MCP server as `ascension_progress_charts`. Use it for non-generic growth visuals such as radar personality matrices, sankey habit loops, network maps, mind maps, tier ladders, and milestone timelines.
+
 ## Weekly Review Export
 
 Open `/weekly-review` and press `Export Weekly Review for ChatGPT`. The app saves the weekly export to Supabase when configured, then copies a markdown report with scores, totals, best/worst days, patterns, and next-week commitments.
