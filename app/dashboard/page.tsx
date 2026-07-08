@@ -1,5 +1,6 @@
 "use client";
 
+import { Activity, BarChart3, Brain, CalendarCheck2, Flame, Gauge, Shield, Sparkles, Target, Zap } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/AppShell";
@@ -12,16 +13,16 @@ import type { DailyLog } from "@/lib/types";
 const today = () => new Date().toISOString().slice(0, 10);
 
 const domains = [
-  ["Gym", "gym_done"],
-  ["Diet", "diet_followed"],
-  ["DSA", "dsa_minutes"],
-  ["NIRMIQ", "nirmiq_minutes"],
-  ["Academics", "academic_minutes"],
-  ["Deep Work", "deep_work_minutes"],
-  ["Dopamine Control", "dopamine_score"],
-  ["Sleep", "sleep_hours"],
-  ["Money", "money_earned"],
-  ["Self-Respect", "self_respect_score"]
+  ["Gym", "gym_done", Activity],
+  ["Diet", "diet_followed", Shield],
+  ["DSA", "dsa_minutes", Brain],
+  ["NIRMIQ", "nirmiq_minutes", Sparkles],
+  ["Academics", "academic_minutes", Target],
+  ["Deep Work", "deep_work_minutes", Zap],
+  ["Dopamine", "dopamine_score", Flame],
+  ["Sleep", "sleep_hours", Gauge],
+  ["Money", "money_earned", Target],
+  ["Self-Respect", "self_respect_score", Shield]
 ] as const;
 
 function domainValue(log: DailyLog, key: (typeof domains)[number][1]) {
@@ -31,6 +32,41 @@ function domainValue(log: DailyLog, key: (typeof domains)[number][1]) {
   if (key === "sleep_hours") return `${value}h`;
   if (key === "money_earned") return `Rs ${value}`;
   return String(value);
+}
+
+function ScoreRing({ value }: { value: number }) {
+  const score = Math.max(0, Math.min(100, value));
+  return (
+    <div
+      className="mx-auto flex aspect-square w-full max-w-[15rem] items-center justify-center rounded-full p-3"
+      style={{
+        background: `conic-gradient(from 220deg, #6EE7B7 0deg, #A5F3FC ${score * 3.6}deg, rgba(29, 49, 56, 0.9) ${score * 3.6}deg 360deg)`
+      }}
+      role="img"
+      aria-label={`Execution score ${score} out of 100`}
+    >
+      <div className="flex h-full w-full flex-col items-center justify-center rounded-full border border-line bg-void text-center shadow-signal">
+        <span className="text-[0.62rem] font-semibold uppercase tracking-[0.18em] text-ghost">Execution</span>
+        <span className="mt-1 text-6xl font-semibold tabular-nums text-text">{score}</span>
+        <span className="mt-1 text-xs text-muted">/100 today</span>
+      </div>
+    </div>
+  );
+}
+
+function DomainBar({ label, value }: { label: string; value: number }) {
+  const score = Math.max(0, Math.min(100, value));
+  return (
+    <div className="grid gap-2">
+      <div className="flex items-center justify-between gap-3 text-sm">
+        <span className="font-medium text-text">{label}</span>
+        <span className="tabular-nums text-muted">{score}</span>
+      </div>
+      <div className="progress-rail">
+        <div className="progress-fill" style={{ width: `${score}%` }} />
+      </div>
+    </div>
+  );
 }
 
 export default function DashboardPage() {
@@ -49,39 +85,69 @@ export default function DashboardPage() {
   return (
     <AppShell>
       <PageTitle
-        eyebrow="Current Form: Unstable"
+        eyebrow="Identity cockpit"
         title="AscensionOS"
-        subtitle="Target Form: Ultimate. Ascension through execution."
+        subtitle="A private operating system for daily proof, pattern memory, and ruthless weekly upgrades."
       />
       {error ? <ErrorBanner message={error} /> : null}
 
-      <div className="grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
-        <Card className="relative overflow-hidden">
-          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-cyan/70 to-transparent" />
-          <p className="text-xs font-semibold uppercase text-ghost">Today&apos;s Execution Score</p>
+      <div className="grid gap-4 lg:grid-cols-[1.05fr_0.95fr]">
+        <Card className="min-h-[28rem]">
           {current ? (
-            <>
-              <div className={`mt-3 text-6xl font-semibold tabular-nums ${scoreTone(current.execution_score)}`}>
-                {current.execution_score}
+            <div className="grid gap-5 sm:grid-cols-[15rem_1fr] sm:items-center">
+              <ScoreRing value={current.execution_score} />
+              <div>
+                <span className="signal-chip">
+                  <Activity size={14} aria-hidden="true" />
+                  Current form
+                </span>
+                <p className={`mt-4 text-2xl font-semibold leading-tight ${scoreTone(current.execution_score)}`}>
+                  {statusForScore(current.execution_score)}
+                </p>
+                <p className="mt-3 text-sm leading-6 text-muted">
+                  Today&apos;s system state is built from body, career, dopamine control, discipline, and self-respect.
+                </p>
+                <div className="mt-5 grid gap-2 sm:grid-cols-2">
+                  <Link href="/checkin" className="primary-button">
+                    <CalendarCheck2 size={17} aria-hidden="true" />
+                    Log proof
+                  </Link>
+                  <Link href="/memory-graph" className="secondary-button">
+                    <BarChart3 size={17} aria-hidden="true" />
+                    Memory graph
+                  </Link>
+                </div>
               </div>
-              <p className="mt-3 text-sm leading-6 text-muted">{statusForScore(current.execution_score)}</p>
-            </>
+            </div>
           ) : (
-            <div className="mt-4">
-              <EmptyState>No proof logged today.</EmptyState>
+            <div className="grid gap-5 sm:grid-cols-[15rem_1fr] sm:items-center">
+              <ScoreRing value={0} />
+              <div>
+                <span className="signal-chip">
+                  <CalendarCheck2 size={14} aria-hidden="true" />
+                  Awaiting proof
+                </span>
+                <div className="mt-4">
+                  <EmptyState>No proof logged today. Open the protocol and capture the real state.</EmptyState>
+                </div>
+                <Link href="/checkin" className="primary-button mt-5 w-full sm:w-auto">
+                  <CalendarCheck2 size={17} aria-hidden="true" />
+                  Start today&apos;s protocol
+                </Link>
+              </div>
             </div>
           )}
-          <Link href="/checkin" className="primary-button mt-5 w-full sm:w-auto">
-            Log Today&apos;s Proof
-          </Link>
-          <Link href="/memory-graph" className="secondary-button mt-3 w-full sm:ml-2 sm:mt-5 sm:w-auto">
-            View Memory Graph
-          </Link>
         </Card>
 
         <Card>
-          <p className="text-xs font-semibold uppercase text-ghost">Score Stack</p>
-          <div className="mt-3 grid grid-cols-2 gap-2">
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold text-text">Personality Matrix</p>
+              <p className="text-xs text-ghost">Five subsystems driving the day.</p>
+            </div>
+            <span className="signal-chip">Live</span>
+          </div>
+          <div className="grid gap-4">
             {[
               ["Discipline", current?.discipline_score ?? 0],
               ["Career", current?.career_score ?? 0],
@@ -89,27 +155,34 @@ export default function DashboardPage() {
               ["Physique", current?.physique_score ?? 0],
               ["Self-Respect", current?.self_respect_score ?? 0]
             ].map(([label, value]) => (
-              <Metric key={label} label={String(label)} value={value} />
+              <DomainBar key={label} label={String(label)} value={Number(value)} />
             ))}
           </div>
         </Card>
       </div>
 
-      <section className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-        {domains.map(([label, key]) => (
-          <Metric key={label} label={label} value={current ? domainValue(current, key) : "-"} />
+      <section className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+        {domains.map(([label, key, Icon]) => (
+          <div key={label} className="micro-panel">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-[0.68rem] uppercase tracking-[0.12em] text-ghost">{label}</span>
+              <Icon size={15} className="text-cyan" aria-hidden="true" />
+            </div>
+            <div className="mt-2 text-xl font-semibold tabular-nums text-text">{current ? domainValue(current, key) : "-"}</div>
+          </div>
         ))}
       </section>
 
       <Card className="mt-4">
         <div className="mb-3 flex items-center justify-between gap-3">
           <div>
-            <p className="text-sm font-semibold text-text">Weekly Compact Analytics</p>
+            <p className="text-sm font-semibold text-text">Weekly Tactical Layer</p>
             <p className="text-xs text-ghost">
               {review.weekStart} to {review.weekEnd}
             </p>
           </div>
           <Link href="/weekly-review" className="secondary-button px-3">
+            <Sparkles size={16} aria-hidden="true" />
             Review
           </Link>
         </div>
