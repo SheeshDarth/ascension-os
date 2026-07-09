@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/AppShell";
+import { AscensionTierLadder, DisciplineRiskMap, HabitLoopFlow, WeeklyPulseTimeline } from "@/components/ProgressIntelligence";
 import { Card, EmptyState, ErrorBanner, Metric, PageTitle } from "@/components/ui";
 import { buildAnalysisInputSummary } from "@/lib/analysis";
 import { getAccessToken } from "@/lib/auth";
@@ -137,6 +138,16 @@ export default function WeeklyReviewPage() {
           </button>
         </div>
       </Card>
+
+      <div className="mt-4 grid gap-4 lg:grid-cols-[0.82fr_1.18fr]">
+        <AscensionTierLadder score={review.averageExecution} />
+        <WeeklyPulseTimeline review={review} />
+      </div>
+
+      <div className="mt-4 grid gap-4 lg:grid-cols-[1.05fr_0.95fr]">
+        <DisciplineRiskMap review={review} />
+        <HabitLoopFlow review={review} />
+      </div>
 
       <Card className="mt-4">
         <div className="grid gap-4">

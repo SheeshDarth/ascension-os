@@ -1,5 +1,6 @@
 "use client";
 
+import { AscensionTierLadder } from "@/components/ProgressIntelligence";
 import { scoreTone, statusForScore } from "@/lib/scoring";
 import { buildMemoryStats, type GraphRange } from "@/lib/memory";
 import type { DailyLog } from "@/lib/types";
@@ -181,6 +182,7 @@ export function MemoryGraph({ logs, range }: { logs: DailyLog[]; range: GraphRan
 
   return (
     <div className="grid gap-4">
+      <AscensionTierLadder score={stats.averageExecution} />
       <NodeGraph logs={logs} range={range} />
       <Timeline logs={stats.logs} />
       {stats.logs.length ? (

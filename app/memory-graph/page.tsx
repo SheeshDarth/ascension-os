@@ -3,8 +3,10 @@
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { MemoryGraph } from "@/components/MemoryGraph";
+import { PatternSnapshot } from "@/components/ProgressIntelligence";
 import { EmptyState, ErrorBanner, PageTitle } from "@/components/ui";
 import { getLogs } from "@/lib/data";
+import { hapticImpact } from "@/lib/haptics";
 import type { GraphRange } from "@/lib/memory";
 import type { DailyLog } from "@/lib/types";
 
@@ -29,6 +31,9 @@ export default function MemoryGraphPage() {
       {error ? <ErrorBanner message={error} /> : null}
 
       {!logs.length ? <EmptyState>No memory graph yet. Log proof daily and the pattern will become visible.</EmptyState> : null}
+      <div className="mb-4">
+        <PatternSnapshot logs={logs} />
+      </div>
       <div className="mb-4 grid grid-cols-3 gap-2 rounded-lg border border-line bg-panel p-1">
         {([7, 30, 90] as GraphRange[]).map((days) => (
           <button
@@ -37,7 +42,10 @@ export default function MemoryGraphPage() {
             className={`min-h-11 rounded-md px-3 py-2 text-sm font-semibold transition ${
               range === days ? "bg-cyan text-black" : "text-muted hover:bg-panel2 hover:text-text"
             }`}
-            onClick={() => setRange(days)}
+            onClick={() => {
+              hapticImpact(6);
+              setRange(days);
+            }}
             aria-pressed={range === days}
           >
             {days}D
