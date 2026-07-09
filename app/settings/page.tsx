@@ -1,9 +1,12 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import { Brain, DatabaseBackup, RotateCcw, Save, ShieldCheck, SlidersHorizontal, Trash2 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
-import { Card, ErrorBanner, PageTitle } from "@/components/ui";
+import { ModuleShell, StatusCell, SurfaceHeader } from "@/components/SurfaceModules";
+import { ErrorBanner, PageTitle } from "@/components/ui";
 import { deleteAiAnalyses, exportBackup, getAiAnalyses, getSettings, importBackup, saveSettings } from "@/lib/data";
+import { hapticImpact } from "@/lib/haptics";
 import type { Settings } from "@/lib/types";
 
 type EditableSettingKey =
@@ -42,6 +45,7 @@ export default function SettingsPage() {
   async function submit(event: FormEvent) {
     event.preventDefault();
     if (!settings) return;
+    hapticImpact(10);
     setError("");
     try {
       const savedSettings = await saveSettings(settings);
@@ -54,6 +58,7 @@ export default function SettingsPage() {
   }
 
   async function exportHistory() {
+    hapticImpact(6);
     setError("");
     try {
       const analyses = await getAiAnalyses();
@@ -64,6 +69,7 @@ export default function SettingsPage() {
   }
 
   async function deleteHistory() {
+    hapticImpact(12);
     setError("");
     try {
       await deleteAiAnalyses();
@@ -76,6 +82,7 @@ export default function SettingsPage() {
   }
 
   async function exportAllData() {
+    hapticImpact(6);
     setError("");
     try {
       setBackupText(JSON.stringify(await exportBackup(), null, 2));
@@ -85,6 +92,7 @@ export default function SettingsPage() {
   }
 
   async function importAllData() {
+    hapticImpact(12);
     setError("");
     try {
       await importBackup(importText);
@@ -107,7 +115,19 @@ export default function SettingsPage() {
       {error ? <ErrorBanner message={error} /> : null}
 
       <form onSubmit={submit}>
-        <Card>
+        <div className="mb-4 grid gap-2 sm:grid-cols-3">
+          <StatusCell label="Operator" value={settings.user_name || "Self"} detail="Private profile" />
+          <StatusCell label="AI provider" value={settings.ai_provider} detail={settings.ai_consent ? "Cloud allowed" : "Cloud locked"} tone={settings.ai_consent ? "good" : "warn"} />
+          <StatusCell label="Backup" value="JSON" detail="No paid storage required" />
+        </div>
+
+        <ModuleShell>
+          <SurfaceHeader
+            icon={SlidersHorizontal}
+            eyebrow="Target controls"
+            title="Season calibration"
+            detail="Set the numbers the daily proof protocol will judge against."
+          />
           <div className="grid gap-3 sm:grid-cols-2">
             {fields.map(([key, label, type]) => (
               <label key={key} className="grid gap-2">
@@ -135,18 +155,19 @@ export default function SettingsPage() {
             </label>
           </div>
           <button type="submit" className="primary-button mt-4">
+            <Save size={17} aria-hidden="true" />
             {saved ? "Saved" : "Save Settings"}
           </button>
-        </Card>
+        </ModuleShell>
 
-        <Card className="mt-4">
+        <ModuleShell className="mt-4">
           <div className="grid gap-4">
-            <div>
-              <p className="text-sm font-semibold text-text">AI Analysis</p>
-              <p className="mt-1 text-sm leading-6 text-muted">
-                Gemini only runs after consent. AscensionOS sends a compact weekly summary with scores, goals, and recent memory labels. Deterministic mode stays local and uses rule-based insights.
-              </p>
-            </div>
+            <SurfaceHeader
+              icon={Brain}
+              eyebrow="AI spine"
+              title="Performance analysis consent"
+              detail="Gemini only runs after consent. Deterministic mode stays local and uses rule-based insights."
+            />
             <label className="grid gap-2">
               <span className="label">Provider</span>
               <select
@@ -163,7 +184,7 @@ export default function SettingsPage() {
                 <option value="gemini">Gemini cloud</option>
               </select>
             </label>
-            <label className="flex min-h-11 items-center gap-3 rounded-md border border-line bg-panel2 px-3 py-2 text-sm text-muted">
+            <label className="flex min-h-12 items-center gap-3 rounded-md border border-line bg-panel2 px-3 py-2 text-sm text-muted">
               <input
                 type="checkbox"
                 checked={settings.ai_consent}
@@ -173,9 +194,11 @@ export default function SettingsPage() {
             </label>
             <div className="grid gap-2 sm:grid-cols-2">
               <button type="button" className="secondary-button" onClick={exportHistory}>
+                <ShieldCheck size={17} aria-hidden="true" />
                 Export AI History
               </button>
               <button type="button" className="secondary-button border-red-900/70 text-red-200" onClick={deleteHistory}>
+                <Trash2 size={17} aria-hidden="true" />
                 Delete AI History
               </button>
             </div>
@@ -186,21 +209,23 @@ export default function SettingsPage() {
               </label>
             ) : null}
           </div>
-        </Card>
+        </ModuleShell>
 
-        <Card className="mt-4">
+        <ModuleShell className="mt-4">
           <div className="grid gap-4">
-            <div>
-              <p className="text-sm font-semibold text-text">Local Backup</p>
-              <p className="mt-1 text-sm leading-6 text-muted">
-                Export the full local cache as JSON or restore a previous backup. This works without paid storage.
-              </p>
-            </div>
+            <SurfaceHeader
+              icon={DatabaseBackup}
+              eyebrow="Local-first vault"
+              title="Backup and restore"
+              detail="Export the full local cache as JSON or restore a previous backup. This works without paid storage."
+            />
             <div className="grid gap-2 sm:grid-cols-2">
               <button type="button" className="secondary-button" onClick={exportAllData}>
+                <DatabaseBackup size={17} aria-hidden="true" />
                 Export Full Backup
               </button>
               <button type="button" className="secondary-button" onClick={importAllData} disabled={!importText.trim()}>
+                <RotateCcw size={17} aria-hidden="true" />
                 Import Backup
               </button>
             </div>
@@ -219,7 +244,7 @@ export default function SettingsPage() {
               </label>
             ) : null}
           </div>
-        </Card>
+        </ModuleShell>
       </form>
     </AppShell>
   );

@@ -1,9 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { ChevronDown, CircleAlert, Flame, History, ShieldCheck } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
-import { Card, EmptyState, ErrorBanner, Metric, PageTitle } from "@/components/ui";
+import { ModuleShell, StatusCell } from "@/components/SurfaceModules";
+import { EmptyState, ErrorBanner, Metric, PageTitle } from "@/components/ui";
 import { getLogs } from "@/lib/data";
+import { hapticImpact } from "@/lib/haptics";
 import { scoreTone, statusForScore } from "@/lib/scoring";
 import type { DailyLog } from "@/lib/types";
 
@@ -18,6 +21,12 @@ export default function HistoryPage() {
       .catch((caught) => setError(caught instanceof Error ? caught.message : "Unable to load history."));
   }, []);
 
+  const averageExecution = logs.length
+    ? Math.round(logs.reduce((total, log) => total + log.execution_score, 0) / logs.length)
+    : 0;
+  const cleanDays = logs.filter((log) => !log.porn_relapse).length;
+  const bestDay = [...logs].sort((a, b) => b.execution_score - a.execution_score)[0];
+
   return (
     <AppShell>
       <PageTitle
@@ -29,24 +38,49 @@ export default function HistoryPage() {
 
       {!logs.length ? <EmptyState>No history. No identity. Start logging proof.</EmptyState> : null}
 
+      <div className="mb-4 grid gap-2 sm:grid-cols-4">
+        <StatusCell label="Logged days" value={logs.length} detail="Proof captured" />
+        <StatusCell label="Average" value={averageExecution} detail="All-time execution" />
+        <StatusCell label="Clean days" value={cleanDays} detail="No relapse logged" tone={cleanDays === logs.length && logs.length ? "good" : "warn"} />
+        <StatusCell label="Best proof" value={bestDay?.execution_score ?? "--"} detail={bestDay?.date ?? "No logs yet"} tone="good" />
+      </div>
+
       <div className="grid gap-3">
         {logs.map((log) => {
           const open = openDate === log.date;
           return (
-            <Card key={log.date}>
+            <ModuleShell key={log.date}>
               <button
                 type="button"
-                className="w-full text-left"
-                onClick={() => setOpenDate(open ? undefined : log.date)}
+                className="min-h-12 w-full text-left"
+                onClick={() => {
+                  hapticImpact(6);
+                  setOpenDate(open ? undefined : log.date);
+                }}
                 aria-expanded={open}
               >
                 <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="font-semibold text-text">{log.date}</p>
-                    <p className="mt-1 text-sm text-muted">{statusForScore(log.execution_score)}</p>
+                  <div className="flex min-w-0 items-start gap-3">
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md border border-cyan/25 bg-cyan/10 text-cyan">
+                      {log.execution_score >= 70 ? <ShieldCheck size={18} aria-hidden="true" /> : log.porn_relapse ? <CircleAlert size={18} aria-hidden="true" /> : <History size={18} aria-hidden="true" />}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-semibold text-text">{log.date}</p>
+                      <p className="mt-1 text-sm text-muted">{statusForScore(log.execution_score)}</p>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        <span className="signal-chip">
+                          <Flame size={14} aria-hidden="true" />
+                          {log.deep_work_minutes}m deep
+                        </span>
+                        <span className="signal-chip">{log.porn_relapse ? "Relapse" : "Clean"}</span>
+                      </div>
+                    </div>
                   </div>
-                  <div className={`text-3xl font-semibold tabular-nums ${scoreTone(log.execution_score)}`}>
-                    {log.execution_score}
+                  <div className="flex shrink-0 items-center gap-2">
+                    <div className={`text-3xl font-semibold tabular-nums ${scoreTone(log.execution_score)}`}>
+                      {log.execution_score}
+                    </div>
+                    <ChevronDown className={`text-ghost transition ${open ? "rotate-180" : ""}`} size={18} aria-hidden="true" />
                   </div>
                 </div>
                 <div className="mt-3 grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
@@ -84,7 +118,7 @@ export default function HistoryPage() {
                   </div>
                 </div>
               ) : null}
-            </Card>
+            </ModuleShell>
           );
         })}
       </div>
