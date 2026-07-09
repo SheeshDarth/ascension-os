@@ -8,6 +8,7 @@ import { Card, EmptyState, ErrorBanner, PageTitle } from "@/components/ui";
 import { numberFields, textFields, toggleFields } from "@/lib/checkin-fields";
 import { getLogByDate, saveLog } from "@/lib/data";
 import { normalizeNumber, normalizeText } from "@/lib/form";
+import { hapticImpact } from "@/lib/haptics";
 import { calculateScores, emptyLog } from "@/lib/scoring";
 import type { DailyLog } from "@/lib/types";
 
@@ -65,7 +66,10 @@ function Toggle({
   return (
     <button
       type="button"
-      onClick={() => onChange(!value)}
+      onClick={() => {
+        hapticImpact(value ? 6 : 10);
+        onChange(!value);
+      }}
       className={`flex min-h-14 items-center justify-between gap-3 rounded-md border px-3 py-2 text-left text-sm font-semibold transition ${
         value ? "border-emerald/40 bg-emerald/12 text-emerald shadow-signal" : "border-line bg-panel2/75 text-muted active:bg-panel"
       }`}
@@ -136,6 +140,7 @@ export default function CheckinPage() {
     setError("");
     try {
       await saveLog(log);
+      hapticImpact(16);
       setSaved("Proof logged.");
       setTimeout(() => router.push("/dashboard"), 450);
     } catch (caught) {

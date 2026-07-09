@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { SyncStatus } from "@/components/SyncStatus";
 import { authEnabled, getSessionUser, signOut } from "@/lib/auth";
+import { hapticImpact } from "@/lib/haptics";
 
 const nav = [
   { href: "/dashboard", label: "Home", icon: Home },
@@ -28,6 +29,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, []);
 
   async function handleSignOut() {
+    hapticImpact(8);
     await signOut();
     window.location.href = "/login";
   }
@@ -53,13 +55,13 @@ export function AppShell({ children }: { children: ReactNode }) {
                   <span className="hidden sm:inline">Sign out</span>
                 </button>
               ) : (
-                <Link href="/login" className="secondary-button px-3">
+                <Link href="/login" className="secondary-button px-3" onClick={() => hapticImpact(8)}>
                   <LogIn size={16} aria-hidden="true" />
                   <span className="hidden sm:inline">Login</span>
                 </Link>
               )
             ) : null}
-            <Link href="/settings" className="secondary-button px-3" aria-label="Open settings">
+            <Link href="/settings" className="secondary-button px-3" aria-label="Open settings" onClick={() => hapticImpact(8)}>
               <Settings size={16} aria-hidden="true" />
               <span className="hidden sm:inline">Settings</span>
             </Link>
@@ -77,6 +79,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <Link
                   key={item.href}
                   href={item.href}
+                  onClick={() => hapticImpact(6)}
                   className={`flex min-h-12 items-center gap-3 rounded-md border px-3 py-2 text-sm font-medium transition ${
                     pathname === item.href
                       ? "border-cyan/40 bg-cyan/10 text-cyan shadow-signal"
@@ -103,6 +106,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               <Link
                 key={item.href}
                 href={item.href}
+                onClick={() => hapticImpact(6)}
                 className={`flex min-h-14 flex-col items-center justify-center rounded-md px-1 text-center text-[0.68rem] font-semibold transition ${
                   pathname === item.href ? "border border-cyan/30 bg-cyan/12 text-cyan" : "text-ghost active:bg-panel2"
                 }`}

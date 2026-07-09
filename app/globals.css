@@ -91,6 +91,61 @@ a:focus-visible {
   outline-offset: 2px;
 }
 
+@keyframes os-scan {
+  0% {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  18% {
+    opacity: 0.35;
+  }
+  100% {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+}
+
+@keyframes soft-float {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(0, -8px, 0);
+  }
+}
+
+@keyframes logo-breathe {
+  0%,
+  100% {
+    filter: drop-shadow(0 0 0 rgba(165, 243, 252, 0));
+  }
+  50% {
+    filter: drop-shadow(0 0 18px rgba(165, 243, 252, 0.45));
+  }
+}
+
+@keyframes boot-rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes ring-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 rgba(165, 243, 252, 0);
+  }
+  50% {
+    box-shadow: 0 0 34px rgba(165, 243, 252, 0.18);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -103,6 +158,31 @@ a:focus-visible {
 }
 
 @layer components {
+  .os-frame {
+    @apply relative overflow-hidden rounded-lg border border-line bg-panel/90 shadow-signal backdrop-blur-xl;
+  }
+
+  .os-frame::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+      linear-gradient(135deg, rgba(165, 243, 252, 0.16), transparent 32%),
+      radial-gradient(circle at 82% 12%, rgba(196, 181, 253, 0.16), transparent 28%),
+      radial-gradient(circle at 12% 90%, rgba(110, 231, 183, 0.12), transparent 32%);
+    opacity: 0.84;
+  }
+
+  .os-frame::after {
+    content: "";
+    position: absolute;
+    inset: -40%;
+    pointer-events: none;
+    background: linear-gradient(180deg, transparent, rgba(165, 243, 252, 0.12), transparent);
+    animation: os-scan 6s ease-in-out infinite;
+  }
+
   .panel {
     @apply relative overflow-hidden rounded-lg border border-line bg-panel/90 shadow-signal backdrop-blur-xl;
   }
@@ -127,11 +207,11 @@ a:focus-visible {
   }
 
   .primary-button {
-    @apply inline-flex min-h-12 items-center justify-center gap-2 rounded-md border border-cyan/40 bg-cyan px-4 py-2 text-sm font-semibold text-black shadow-signal transition hover:bg-cyan/90 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50;
+    @apply inline-flex min-h-12 items-center justify-center gap-2 rounded-md border border-cyan/40 bg-cyan px-4 py-2 text-sm font-semibold text-black shadow-signal transition duration-200 hover:bg-cyan/90 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50;
   }
 
   .secondary-button {
-    @apply inline-flex min-h-12 items-center justify-center gap-2 rounded-md border border-line bg-panel2/90 px-4 py-2 text-sm font-semibold text-text transition hover:border-cyan/40 hover:bg-panel active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50;
+    @apply inline-flex min-h-12 items-center justify-center gap-2 rounded-md border border-line bg-panel2/90 px-4 py-2 text-sm font-semibold text-text transition duration-200 hover:border-cyan/40 hover:bg-panel active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50;
   }
 
   .micro-panel {
@@ -148,5 +228,43 @@ a:focus-visible {
 
   .progress-fill {
     @apply h-full rounded-full bg-gradient-to-r from-emerald via-cyan to-violet;
+  }
+
+  .protocol-tile {
+    @apply relative min-h-40 overflow-hidden rounded-lg border border-line bg-panel/80 p-4 transition duration-200 active:scale-[0.985];
+  }
+
+  .protocol-tile::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: radial-gradient(circle at 80% 0%, rgba(165, 243, 252, 0.12), transparent 35%);
+  }
+
+  .launch-cockpit {
+    animation: soft-float 7s ease-in-out infinite;
+  }
+
+  .logo-breathe {
+    animation: logo-breathe 2.8s ease-in-out infinite;
+  }
+
+  .boot-line {
+    animation: boot-rise 420ms ease-out both;
+  }
+
+  .ring-pulse {
+    animation: ring-pulse 3.4s ease-in-out infinite;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .os-frame::after,
+  .launch-cockpit,
+  .logo-breathe,
+  .boot-line,
+  .ring-pulse {
+    animation: none !important;
   }
 }

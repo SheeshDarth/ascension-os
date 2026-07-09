@@ -16,5 +16,28 @@
       "type": "image/svg+xml",
       "purpose": "any maskable"
     }
+  ],
+  "shortcuts": [
+    {
+      "name": "Dashboard",
+      "short_name": "Home",
+      "description": "Open the AscensionOS cockpit.",
+      "url": "/dashboard",
+      "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml" }]
+    },
+    {
+      "name": "Log Proof",
+      "short_name": "Proof",
+      "description": "Open the daily proof protocol.",
+      "url": "/checkin",
+      "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml" }]
+    },
+    {
+      "name": "Memory Graph",
+      "short_name": "Graph",
+      "description": "Open the performance memory graph.",
+      "url": "/memory-graph",
+      "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml" }]
+    }
   ]
 }
