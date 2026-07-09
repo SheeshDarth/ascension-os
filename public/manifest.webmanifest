@@ -1,14 +1,19 @@
 {
   "name": "AscensionOS",
   "short_name": "AscensionOS",
+  "id": "/dashboard",
   "description": "Private self-improvement cockpit for daily proof, memory graphs, and weekly analysis.",
   "start_url": "/dashboard",
   "scope": "/",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
   "orientation": "portrait",
   "background_color": "#030507",
   "theme_color": "#030507",
+  "lang": "en",
+  "dir": "ltr",
   "categories": ["productivity", "health", "lifestyle"],
+  "prefer_related_applications": false,
   "icons": [
     {
       "src": "/icon.svg",
@@ -37,6 +42,20 @@
       "short_name": "Graph",
       "description": "Open the performance memory graph.",
       "url": "/memory-graph",
+      "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml" }]
+    },
+    {
+      "name": "Weekly Review",
+      "short_name": "Review",
+      "description": "Open the weekly tactical review.",
+      "url": "/weekly-review",
+      "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml" }]
+    },
+    {
+      "name": "Settings",
+      "short_name": "Settings",
+      "description": "Open local backup, sync, and AI settings.",
+      "url": "/settings",
       "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml" }]
     }
   ]

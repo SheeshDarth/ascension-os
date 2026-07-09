@@ -23,11 +23,13 @@
 
 html {
   scroll-behavior: smooth;
+  background: var(--background);
 }
 
 body {
   min-height: 100dvh;
   margin: 0;
+  overscroll-behavior-y: none;
   background:
     linear-gradient(180deg, rgba(3, 5, 7, 0.55), rgba(3, 5, 7, 0.98)),
     linear-gradient(135deg, rgba(165, 243, 252, 0.08), transparent 34rem),
@@ -36,6 +38,12 @@ body {
   color: var(--text);
   font-family: Inter, Geist, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-feature-settings: "tnum";
+}
+
+@media (display-mode: standalone) {
+  body {
+    min-height: 100dvh;
+  }
 }
 
 body::before {
