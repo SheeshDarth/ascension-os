@@ -48,6 +48,8 @@ If Supabase keys are missing, the app uses localStorage as a development fallbac
 
 When Supabase is configured, AscensionOS still keeps a local IndexedDB cache. If the cloud request fails, reads fall back to the last local cache and writes are queued for the next online sync. A small status strip appears when offline, when sync is pending, or when the last sync attempt failed.
 
+When Supabase is configured, all AppShell routes require an active session and redirect signed-out users to `/login`. The session check reads the local Supabase session so an installed app can reopen offline; cloud sync still waits for the network. Keep both Supabase environment variables present together. A partial configuration is treated as a deployment error rather than silently becoming local-only mode.
+
 ## Supabase Setup
 
 1. Create a new Supabase project.
@@ -120,6 +122,8 @@ Post-deploy smoke test:
 - Run deterministic weekly analysis without Gemini.
 - If `GEMINI_API_KEY` is configured, run Gemini analysis after consent.
 - Install the PWA on phone and confirm standalone launch.
+- Open a protected route while signed out and confirm it redirects to `/login`.
+- Confirm the analysis endpoint rejects a partial Supabase configuration and never allows unauthenticated Gemini cloud analysis.
 
 Service worker release rule:
 

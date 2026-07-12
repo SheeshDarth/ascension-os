@@ -15,6 +15,12 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  function nextPath() {
+    if (typeof window === "undefined") return "/dashboard";
+    const requestedNext = new URLSearchParams(window.location.search).get("next");
+    return requestedNext && requestedNext.startsWith("/") && !requestedNext.startsWith("//") ? requestedNext : "/dashboard";
+  }
+
   async function submit(event: FormEvent) {
     event.preventDefault();
     hapticImpact(8);
@@ -22,7 +28,7 @@ export default function LoginPage() {
     setMessage("");
     setLoading(true);
     try {
-      await signInWithMagicLink(email);
+      await signInWithMagicLink(email, nextPath());
       setMessage("Magic link sent. Open your email and return to AscensionOS.");
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Unable to send magic link.");
@@ -36,7 +42,7 @@ export default function LoginPage() {
     setError("");
     setLoading(true);
     try {
-      await signInWithGoogle();
+      await signInWithGoogle(nextPath());
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Unable to start Google login.");
       setLoading(false);

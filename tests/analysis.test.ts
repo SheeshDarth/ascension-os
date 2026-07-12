@@ -50,6 +50,24 @@ describe("AI analysis", () => {
     expect(() => parseAnalysisResult({ summary: "missing arrays" })).toThrow(/missing string array/i);
   });
 
+  it("rejects invalid provider metadata", () => {
+    expect(() =>
+      parseAnalysisResult({
+        summary: "valid summary",
+        strongestPatterns: [],
+        weakestPatterns: [],
+        risks: [],
+        nextActions: ["Do the next task"],
+        confidence: "medium",
+        sourceDates: ["2026-07-06"],
+        sourceMetrics: ["average_execution=50"],
+        provider: "unknown",
+        model: "test",
+        caveats: []
+      })
+    ).toThrow(/invalid provider/i);
+  });
+
   it("falls back when Gemini API key is missing", async () => {
     const oldKey = process.env.GEMINI_API_KEY;
     delete process.env.GEMINI_API_KEY;

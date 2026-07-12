@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { BarChart3, CalendarCheck2, History, Home, LogIn, LogOut, Settings, Sparkles, Target } from "lucide-react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { SyncStatus } from "@/components/SyncStatus";
@@ -19,19 +19,43 @@ const nav = [
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [email, setEmail] = useState<string | null>(null);
+  const [authReady, setAuthReady] = useState(!authEnabled());
 
   useEffect(() => {
-    if (!authEnabled()) return;
+    if (!authEnabled()) {
+      setAuthReady(true);
+      return;
+    }
     getSessionUser()
-      .then((user) => setEmail(user?.email ?? null))
-      .catch(() => setEmail(null));
-  }, []);
+      .then((user) => {
+        if (user) {
+          setEmail(user.email ?? null);
+          setAuthReady(true);
+          return;
+        }
+        router.replace(`/login?next=${encodeURIComponent(pathname)}`);
+      })
+      .catch(() => router.replace(`/login?next=${encodeURIComponent(pathname)}`));
+  }, [pathname, router]);
 
   async function handleSignOut() {
     hapticImpact(8);
     await signOut();
     window.location.href = "/login";
+  }
+
+  if (!authReady) {
+    return (
+      <main className="grid min-h-dvh place-items-center bg-void px-4 text-text">
+        <div className="grid max-w-sm gap-3 text-center" aria-live="polite" aria-busy="true">
+          <div className="mx-auto h-10 w-10 animate-pulse rounded-md border border-cyan/35 bg-cyan/10 shadow-signal" />
+          <p className="text-sm font-semibold">Verifying private access</p>
+          <p className="text-sm text-muted">Your cockpit stays locked until the active session is confirmed.</p>
+        </div>
+      </main>
+    );
   }
 
   return (

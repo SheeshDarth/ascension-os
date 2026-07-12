@@ -6,22 +6,25 @@ export function authEnabled() {
   return Boolean(supabase);
 }
 
-export async function signInWithMagicLink(email: string) {
+function authRedirect(path = "/dashboard") {
+  const safePath = path.startsWith("/") && !path.startsWith("//") ? path : "/dashboard";
+  return typeof window !== "undefined" ? `${window.location.origin}${safePath}` : undefined;
+}
+
+export async function signInWithMagicLink(email: string, redirectPath = "/dashboard") {
   if (!supabase) throw new Error("Supabase is not configured.");
-  const redirectTo = typeof window !== "undefined" ? `${window.location.origin}/dashboard` : undefined;
   const { error } = await supabase.auth.signInWithOtp({
     email,
-    options: { emailRedirectTo: redirectTo }
+    options: { emailRedirectTo: authRedirect(redirectPath) }
   });
   if (error) throw new Error(error.message);
 }
 
-export async function signInWithGoogle() {
+export async function signInWithGoogle(redirectPath = "/dashboard") {
   if (!supabase) throw new Error("Supabase is not configured.");
-  const redirectTo = typeof window !== "undefined" ? `${window.location.origin}/dashboard` : undefined;
   const { error } = await supabase.auth.signInWithOAuth({
     provider: "google",
-    options: { redirectTo }
+    options: { redirectTo: authRedirect(redirectPath) }
   });
   if (error) throw new Error(error.message);
 }
@@ -41,7 +44,7 @@ export async function signOut() {
 
 export async function getSessionUser() {
   if (!supabase) return null;
-  const { data, error } = await supabase.auth.getUser();
+  const { data, error } = await supabase.auth.getSession();
   if (error) throw new Error(error.message);
-  return data.user;
+  return data.session?.user ?? null;
 }

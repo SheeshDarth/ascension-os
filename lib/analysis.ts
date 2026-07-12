@@ -164,6 +164,10 @@ function isStringArray(value: unknown): value is string[] {
   return Array.isArray(value) && value.every((item) => typeof item === "string");
 }
 
+function isProvider(value: unknown): value is AnalysisProviderId {
+  return value === "off" || value === "deterministic" || value === "gemini";
+}
+
 export function parseAnalysisResult(value: unknown, fallbackProvider: AnalysisProviderId = "gemini"): AnalysisResult {
   if (!value || typeof value !== "object") throw new Error("Analysis output must be an object.");
   const record = value as Record<string, unknown>;
@@ -173,6 +177,7 @@ export function parseAnalysisResult(value: unknown, fallbackProvider: AnalysisPr
   if (typeof record.summary !== "string" || record.summary.trim().length === 0) throw new Error("Analysis output missing summary.");
   if (!["low", "medium", "high"].includes(String(record.confidence))) throw new Error("Analysis output has invalid confidence.");
   if (typeof record.model !== "string" || record.model.trim().length === 0) throw new Error("Analysis output missing model.");
+  if (record.provider !== undefined && !isProvider(record.provider)) throw new Error("Analysis output has invalid provider.");
   const strongestPatterns = record.strongestPatterns as string[];
   const weakestPatterns = record.weakestPatterns as string[];
   const risks = record.risks as string[];
