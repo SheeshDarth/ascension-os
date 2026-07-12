@@ -20,6 +20,18 @@
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ],
   "shortcuts": [
@@ -28,35 +40,35 @@
       "short_name": "Home",
       "description": "Open the AscensionOS cockpit.",
       "url": "/dashboard",
-      "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml" }]
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
     },
     {
       "name": "Log Proof",
       "short_name": "Proof",
       "description": "Open the daily proof protocol.",
       "url": "/checkin",
-      "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml" }]
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
     },
     {
       "name": "Memory Graph",
       "short_name": "Graph",
       "description": "Open the performance memory graph.",
       "url": "/memory-graph",
-      "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml" }]
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
     },
     {
       "name": "Weekly Review",
       "short_name": "Review",
       "description": "Open the weekly tactical review.",
       "url": "/weekly-review",
-      "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml" }]
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
     },
     {
       "name": "Settings",
       "short_name": "Settings",
       "description": "Open local backup, sync, and AI settings.",
       "url": "/settings",
-      "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml" }]
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
     }
   ]
 }

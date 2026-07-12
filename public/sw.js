@@ -1,4 +1,4 @@
-const CACHE_VERSION = "ascensionos-2026-07-12-mega-sprint";
+const CACHE_VERSION = "ascensionos-2026-07-12-install-assets";
 const SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
@@ -11,7 +11,9 @@ const SHELL_URLS = [
   "/settings",
   "/offline.html",
   "/manifest.webmanifest",
-  "/icon.svg"
+  "/icon.svg",
+  "/icon-192.png",
+  "/icon-512.png"
 ];
 
 self.addEventListener("install", (event) => {
@@ -74,7 +76,13 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  if (url.pathname.startsWith("/_next/static/") || url.pathname === "/icon.svg" || url.pathname === "/manifest.webmanifest") {
+  if (
+    url.pathname.startsWith("/_next/static/") ||
+    url.pathname === "/icon.svg" ||
+    url.pathname === "/icon-192.png" ||
+    url.pathname === "/icon-512.png" ||
+    url.pathname === "/manifest.webmanifest"
+  ) {
     event.respondWith(staleWhileRevalidate(request));
   }
 });
