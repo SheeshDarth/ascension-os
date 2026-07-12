@@ -81,6 +81,50 @@ GEMINI_API_KEY=
 4. Deploy.
 5. Open `/dashboard` from your phone.
 
+## Production Deployment Checklist
+
+Run this before every production deploy:
+
+```bash
+npm run check
+```
+
+Supabase:
+
+- Run `supabase/schema.sql` for a fresh production database.
+- For an existing database, run pending migrations in order, including `supabase/migrations/002_onboarding_completed.sql`.
+- Confirm RLS is enabled on `daily_logs`, `goals`, `settings`, `weekly_reviews`, `ai_analyses`, and `memory_items`.
+- Confirm every table has owner-only select/insert/update/delete policies using `auth.uid() = user_id`.
+- Enable Google OAuth and email magic links in Supabase Auth.
+- Add redirect URLs for local dev, Vercel preview if used, and production.
+
+Vercel:
+
+- Import the private GitHub repo.
+- Add:
+  - `NEXT_PUBLIC_SUPABASE_URL`
+  - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+  - `GEMINI_API_KEY` if Gemini weekly analysis is desired
+- Deploy from `master`.
+- After deploy, hard refresh the installed PWA once when `lib/deployment.ts` changes because the service worker cache version is intentionally pinned per release.
+
+Post-deploy smoke test:
+
+- Open `/`, `/login`, `/dashboard`, `/checkin`, `/memory-graph`, `/weekly-review`, `/history`, `/goals`, `/settings`, `/offline.html`, `/sw.js`, and `/manifest.webmanifest`.
+- Sign in with Google.
+- Log proof on laptop and confirm it appears on phone.
+- Change settings on phone and confirm they appear on laptop.
+- Complete first-run onboarding on a fresh browser profile.
+- Save a check-in while offline, reconnect, and confirm sync status clears.
+- Export and import a local backup from `/settings`.
+- Run deterministic weekly analysis without Gemini.
+- If `GEMINI_API_KEY` is configured, run Gemini analysis after consent.
+- Install the PWA on phone and confirm standalone launch.
+
+Service worker release rule:
+
+- Update `APP_BUILD_VERSION` in `lib/deployment.ts` and `CACHE_VERSION` in `public/sw.js` together for releases that change cached shell behavior.
+
 ## Daily Use
 
 Use `/login` to send yourself a Supabase magic link, then use `/checkin` once per day. Log only what happened:

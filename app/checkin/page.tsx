@@ -7,12 +7,20 @@ import { AppShell } from "@/components/AppShell";
 import { Card, EmptyState, ErrorBanner, PageTitle } from "@/components/ui";
 import { numberFields, textFields, toggleFields } from "@/lib/checkin-fields";
 import { getLogByDate, saveLog } from "@/lib/data";
+import { yesterdayDelta } from "@/lib/daily-insights";
 import { normalizeNumber, normalizeText } from "@/lib/form";
 import { hapticImpact } from "@/lib/haptics";
 import { calculateScores, emptyLog } from "@/lib/scoring";
 import type { DailyLog } from "@/lib/types";
 
 const today = () => new Date().toISOString().slice(0, 10);
+const draftKey = "ascensionos.checkin_draft.v1";
+
+function addDays(dateKey: string, days: number) {
+  const date = new Date(`${dateKey}T00:00:00`);
+  date.setDate(date.getDate() + days);
+  return date.toISOString().slice(0, 10);
+}
 
 type Key = keyof DailyLog;
 
@@ -56,13 +64,18 @@ const textFieldByKey = new Map(textFields.map((field) => [field[0], field]));
 
 function Toggle({
   label,
+  fieldKey,
   value,
   onChange
 }: {
   label: string;
+  fieldKey: Key;
   value: boolean;
   onChange: (value: boolean) => void;
 }) {
+  const negative = fieldKey === "porn_relapse" || fieldKey === "smoking";
+  const activeClass = negative ? "border-red-400/40 bg-red-400/10 text-red-200" : "border-emerald/40 bg-emerald/12 text-emerald shadow-signal";
+  const status = negative ? (value ? "Yes" : "No") : value ? "Done" : "Open";
   return (
     <button
       type="button"
@@ -71,12 +84,12 @@ function Toggle({
         onChange(!value);
       }}
       className={`flex min-h-14 items-center justify-between gap-3 rounded-md border px-3 py-2 text-left text-sm font-semibold transition ${
-        value ? "border-emerald/40 bg-emerald/12 text-emerald shadow-signal" : "border-line bg-panel2/75 text-muted active:bg-panel"
+        value ? activeClass : "border-line bg-panel2/75 text-muted active:bg-panel"
       }`}
       aria-pressed={value}
     >
       <span>{label}</span>
-      <span className="rounded-md border border-current/20 px-2 py-1 text-xs">{value ? "Locked" : "Open"}</span>
+      <span className="rounded-md border border-current/20 px-2 py-1 text-xs">{status}</span>
     </button>
   );
 }
@@ -121,25 +134,44 @@ function NumberInput({ field, log, set }: { field: [Key, string, number?, number
 export default function CheckinPage() {
   const router = useRouter();
   const [log, setLog] = useState<DailyLog>(emptyLog(today()));
+  const [yesterday, setYesterday] = useState<DailyLog | undefined>();
+  const [loaded, setLoaded] = useState(false);
   const [saved, setSaved] = useState("");
   const [error, setError] = useState("");
 
   useEffect(() => {
-    getLogByDate(today())
-      .then((existing) => {
-        if (existing) setLog(existing);
+    Promise.all([getLogByDate(today()), getLogByDate(addDays(today(), -1))])
+      .then(([existing, prior]) => {
+        setYesterday(prior);
+        if (existing) {
+          setLog(existing);
+        } else {
+          const rawDraft = window.localStorage.getItem(draftKey);
+          if (rawDraft) {
+            const draft = JSON.parse(rawDraft) as DailyLog;
+            if (draft.date === today()) setLog(draft);
+          }
+        }
       })
-      .catch((caught) => setError(caught instanceof Error ? caught.message : "Unable to load today's log."));
+      .catch((caught) => setError(caught instanceof Error ? caught.message : "Unable to load today's log."))
+      .finally(() => setLoaded(true));
   }, []);
+
+  useEffect(() => {
+    if (!loaded) return;
+    window.localStorage.setItem(draftKey, JSON.stringify(log));
+  }, [loaded, log]);
 
   const set = <T extends Key>(key: T, value: DailyLog[T]) => setLog((current) => ({ ...current, [key]: value }));
   const preview = calculateScores(log);
+  const delta = yesterdayDelta(preview, yesterday);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
     setError("");
     try {
       await saveLog(log);
+      window.localStorage.removeItem(draftKey);
       hapticImpact(16);
       setSaved("Proof logged.");
       setTimeout(() => router.push("/dashboard"), 450);
@@ -176,10 +208,13 @@ export default function CheckinPage() {
                     <Zap size={14} aria-hidden="true" />
                     {log.deep_work_minutes || 0}m deep work
                   </span>
+                  <span className="signal-chip">
+                    {delta === null ? "No yesterday" : `${delta >= 0 ? "+" : ""}${delta} vs yesterday`}
+                  </span>
                 </div>
                 <p className="mt-4 text-2xl font-semibold leading-tight text-text">Capture proof before memory edits the day.</p>
                 <p className="mt-2 text-sm leading-6 text-muted">
-                  Every input feeds the memory graph and weekly analysis. Keep it honest, short, and usable.
+                  Draft autosaves on this device. Every input feeds the memory graph and weekly analysis.
                 </p>
               </div>
             </div>
@@ -226,6 +261,7 @@ export default function CheckinPage() {
                 <Toggle
                   key={key}
                   label={label}
+                  fieldKey={key as Key}
                   value={Boolean(log[key as Key])}
                   onChange={(value) => set(key as Key, value as never)}
                 />

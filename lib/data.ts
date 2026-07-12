@@ -144,6 +144,21 @@ async function saveLocalAiAnalysis(input: {
   return saved;
 }
 
+async function saveLocalMemoryItem(item: MemoryItem) {
+  const items = await readLocalValue<MemoryItem[]>(MEMORY_ITEMS_KEY, []);
+  const id = item.id ?? crypto.randomUUID();
+  const saved = {
+    ...item,
+    id,
+    created_at: item.created_at ?? new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  };
+  const next = items.filter((current) => current.id !== id);
+  next.push(saved);
+  await writeLocalValue(MEMORY_ITEMS_KEY, next.sort((a, b) => (b.created_at ?? "").localeCompare(a.created_at ?? "")));
+  return saved;
+}
+
 async function applySyncOperation(operation: SyncOperation, userId: string) {
   if (!supabase) return;
   switch (operation.entity) {
@@ -192,6 +207,17 @@ async function applySyncOperation(operation: SyncOperation, userId: string) {
       const { error } = await supabase
         .from("ai_analyses")
         .upsert({ ...(operation.payload as AiAnalysis), user_id: userId }, { onConflict: "user_id,week_start,provider" });
+      if (error) throw new DataAccessError(error.message);
+      return;
+    }
+    case "memory_items": {
+      if (operation.action === "delete") {
+        const payload = operation.payload as Pick<MemoryItem, "id">;
+        const { error } = await supabase.from("memory_items").delete().eq("id", payload.id).eq("user_id", userId);
+        if (error) throw new DataAccessError(error.message);
+        return;
+      }
+      const { error } = await supabase.from("memory_items").upsert({ ...(operation.payload as MemoryItem), user_id: userId });
       if (error) throw new DataAccessError(error.message);
     }
   }
@@ -394,6 +420,42 @@ export async function getMemoryItems(limit = 20): Promise<MemoryItem[]> {
     if (error) fail(error.message);
     return (data ?? []) as MemoryItem[];
   }, (items) => items.length > 0).then((items) => items.slice(0, limit));
+}
+
+export async function saveMemoryItem(item: MemoryItem): Promise<MemoryItem> {
+  const local = await saveLocalMemoryItem(item);
+  if (supabase) {
+    try {
+      const userId = await requireUserId();
+      const { data, error } = await supabase.from("memory_items").upsert({ ...local, user_id: userId }).select().single();
+      if (error) fail(error.message);
+      const saved = data as MemoryItem;
+      await saveLocalMemoryItem(saved);
+      await writeSyncSnapshot({ lastError: "" });
+      return saved;
+    } catch (error) {
+      await enqueueSyncOperation({ entity: "memory_items", action: "upsert", payload: local });
+      await noteCloudError(error);
+      return local;
+    }
+  }
+  return local;
+}
+
+export async function deleteMemoryItem(id: string) {
+  const current = await readLocalValue<MemoryItem[]>(MEMORY_ITEMS_KEY, []);
+  await writeLocalValue(MEMORY_ITEMS_KEY, current.filter((item) => item.id !== id));
+  if (supabase) {
+    try {
+      const userId = await requireUserId();
+      const { error } = await supabase.from("memory_items").delete().eq("id", id).eq("user_id", userId);
+      if (error) fail(error.message);
+      await writeSyncSnapshot({ lastError: "" });
+    } catch (error) {
+      await enqueueSyncOperation({ entity: "memory_items", action: "delete", payload: { id } });
+      await noteCloudError(error);
+    }
+  }
 }
 
 export async function getAiAnalyses(): Promise<AiAnalysis[]> {

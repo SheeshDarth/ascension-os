@@ -74,6 +74,7 @@ create table if not exists settings (
   sleep_target text not null default '7-8.5 hours',
   ai_provider text not null default 'deterministic',
   ai_consent boolean not null default false,
+  onboarding_completed boolean not null default false,
   created_at timestamp with time zone default now(),
   updated_at timestamp with time zone default now()
 );

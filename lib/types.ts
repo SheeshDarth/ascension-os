@@ -68,6 +68,7 @@ export type Settings = {
   sleep_target: string;
   ai_provider: AnalysisProviderId;
   ai_consent: boolean;
+  onboarding_completed: boolean;
 };
 
 export type WeeklyReviewRow = {

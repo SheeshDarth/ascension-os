@@ -3,10 +3,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { AscensionTierLadder, DisciplineRiskMap, HabitLoopFlow, WeeklyPulseTimeline } from "@/components/ProgressIntelligence";
+import { StatusCell } from "@/components/SurfaceModules";
 import { Card, EmptyState, ErrorBanner, Metric, PageTitle } from "@/components/ui";
 import { buildAnalysisInputSummary } from "@/lib/analysis";
 import { getAccessToken } from "@/lib/auth";
-import { getAiAnalyses, getGoals, getLogs, getMemoryItems, getSettings, rateAiAnalysis, saveAiAnalysis, saveWeeklyReview } from "@/lib/data";
+import { getAiAnalyses, getGoals, getLogs, getMemoryItems, getSettings, rateAiAnalysis, saveAiAnalysis, saveMemoryItem, saveWeeklyReview } from "@/lib/data";
+import { previousWeekReviewDate } from "@/lib/daily-insights";
 import { buildWeeklyReview, weeklyMarkdown } from "@/lib/weekly";
 import type { AiAnalysis, AnalysisResult, DailyLog, Goal, MemoryItem, Settings } from "@/lib/types";
 
@@ -20,6 +22,7 @@ export default function WeeklyReviewPage() {
   const [analysisLoading, setAnalysisLoading] = useState(false);
   const [correctionNote, setCorrectionNote] = useState("");
   const [copied, setCopied] = useState(false);
+  const [memorySaved, setMemorySaved] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -35,6 +38,7 @@ export default function WeeklyReviewPage() {
   }, []);
 
   const review = useMemo(() => buildWeeklyReview(logs), [logs]);
+  const previousReview = useMemo(() => buildWeeklyReview(logs, previousWeekReviewDate(review)), [logs, review]);
   const markdown = weeklyMarkdown(review);
   const analysisInput = useMemo(
     () => ({
@@ -112,6 +116,23 @@ export default function WeeklyReviewPage() {
     }
   }
 
+  async function saveReviewMemory() {
+    setError("");
+    try {
+      await saveMemoryItem({
+        source_type: "review",
+        source_date: review.weekEnd,
+        title: `Weekly review ${review.weekStart} to ${review.weekEnd}`,
+        body: currentAnalysis?.output_json.summary ?? review.brutalPattern,
+        tags_json: ["review", "identity", review.relapseDays > 0 ? "warning" : "win"]
+      });
+      setMemorySaved(true);
+      setTimeout(() => setMemorySaved(false), 1500);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Unable to save review memory.");
+    }
+  }
+
   return (
     <AppShell>
       <PageTitle
@@ -144,6 +165,28 @@ export default function WeeklyReviewPage() {
         <WeeklyPulseTimeline review={review} />
       </div>
 
+      <section className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-6">
+        {[
+          ["Execution delta", review.averageExecution - previousReview.averageExecution],
+          ["Discipline delta", review.averageDiscipline - previousReview.averageDiscipline],
+          ["Career delta", review.averageCareer - previousReview.averageCareer],
+          ["Dopamine delta", review.averageDopamine - previousReview.averageDopamine],
+          ["Physique delta", review.averagePhysique - previousReview.averagePhysique],
+          ["Self-respect delta", review.averageSelfRespect - previousReview.averageSelfRespect]
+        ].map(([label, deltaValue]) => {
+          const delta = Number(deltaValue);
+          return (
+            <StatusCell
+              key={String(label)}
+              label={String(label)}
+              value={`${delta >= 0 ? "+" : ""}${delta}`}
+              detail="vs previous week"
+              tone={delta >= 0 ? "good" : "warn"}
+            />
+          );
+        })}
+      </section>
+
       <div className="mt-4 grid gap-4 lg:grid-cols-[1.05fr_0.95fr]">
         <DisciplineRiskMap review={review} />
         <HabitLoopFlow review={review} />
@@ -158,9 +201,14 @@ export default function WeeklyReviewPage() {
                 Provider: {settings?.ai_provider ?? "deterministic"} · Gemini consent: {settings?.ai_consent ? "enabled" : "disabled"}
               </p>
             </div>
-            <button type="button" className="primary-button" onClick={analyzeWeek} disabled={analysisLoading || review.logs.length === 0}>
-              {analysisLoading ? "Analyzing..." : "Analyze Week"}
-            </button>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <button type="button" className="primary-button" onClick={analyzeWeek} disabled={analysisLoading || review.logs.length === 0}>
+                {analysisLoading ? "Analyzing..." : "Analyze Week"}
+              </button>
+              <button type="button" className="secondary-button" onClick={saveReviewMemory} disabled={review.logs.length === 0}>
+                {memorySaved ? "Saved" : "Save Memory"}
+              </button>
+            </div>
           </div>
 
           <div className="rounded-md border border-line bg-panel2 p-3">
@@ -168,6 +216,9 @@ export default function WeeklyReviewPage() {
             <p className="mt-2 text-sm text-muted">{inputSummary}</p>
             {settings?.ai_provider === "gemini" && !settings.ai_consent ? (
               <p className="mt-2 text-xs text-amber">Gemini is selected, but cloud consent is off. Deterministic analysis will be used.</p>
+            ) : null}
+            {settings?.ai_provider !== "gemini" ? (
+              <p className="mt-2 text-xs text-muted">Fallback status: deterministic analysis is the trusted baseline; Gemini is optional.</p>
             ) : null}
           </div>
 

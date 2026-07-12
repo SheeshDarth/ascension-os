@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ChevronDown, CircleAlert, Flame, History, ShieldCheck } from "lucide-react";
+import { ChevronDown, CircleAlert, Flame, History, Save, ShieldCheck } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { ModuleShell, StatusCell } from "@/components/SurfaceModules";
 import { EmptyState, ErrorBanner, Metric, PageTitle } from "@/components/ui";
-import { getLogs } from "@/lib/data";
+import { getLogs, saveMemoryItem } from "@/lib/data";
 import { hapticImpact } from "@/lib/haptics";
 import { scoreTone, statusForScore } from "@/lib/scoring";
 import type { DailyLog } from "@/lib/types";
@@ -13,6 +13,7 @@ import type { DailyLog } from "@/lib/types";
 export default function HistoryPage() {
   const [logs, setLogs] = useState<DailyLog[]>([]);
   const [openDate, setOpenDate] = useState<string | undefined>();
+  const [savedMemoryDate, setSavedMemoryDate] = useState<string | undefined>();
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -26,6 +27,31 @@ export default function HistoryPage() {
     : 0;
   const cleanDays = logs.filter((log) => !log.porn_relapse).length;
   const bestDay = [...logs].sort((a, b) => b.execution_score - a.execution_score)[0];
+
+  async function saveLogMemory(log: DailyLog) {
+    hapticImpact(8);
+    setError("");
+    try {
+      await saveMemoryItem({
+        source_type: "log",
+        source_date: log.date,
+        title: `${log.execution_score >= 70 ? "Win" : log.execution_score < 50 ? "Warning" : "Signal"}: ${log.date}`,
+        body: [
+          `Execution ${log.execution_score}/100.`,
+          log.hardest_task_done ? `Hardest task: ${log.hardest_task_done}.` : "",
+          log.biggest_distraction ? `Distraction: ${log.biggest_distraction}.` : "",
+          log.notes ? `Notes: ${log.notes}` : ""
+        ]
+          .filter(Boolean)
+          .join(" "),
+        tags_json: ["log", log.execution_score >= 70 ? "win" : log.execution_score < 50 ? "warning" : "identity"]
+      });
+      setSavedMemoryDate(log.date);
+      setTimeout(() => setSavedMemoryDate(undefined), 1500);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Unable to save memory.");
+    }
+  }
 
   return (
     <AppShell>
@@ -115,6 +141,10 @@ export default function HistoryPage() {
                     <p>
                       <span className="font-semibold text-text">Notes:</span> {log.notes || "-"}
                     </p>
+                    <button type="button" className="secondary-button w-full sm:w-fit" onClick={() => saveLogMemory(log)}>
+                      <Save size={17} aria-hidden="true" />
+                      {savedMemoryDate === log.date ? "Memory saved" : "Save as memory"}
+                    </button>
                   </div>
                 </div>
               ) : null}

@@ -5,9 +5,9 @@ import { Brain, DatabaseBackup, RotateCcw, Save, ShieldCheck, SlidersHorizontal,
 import { AppShell } from "@/components/AppShell";
 import { ModuleShell, StatusCell, SurfaceHeader } from "@/components/SurfaceModules";
 import { ErrorBanner, PageTitle } from "@/components/ui";
-import { deleteAiAnalyses, exportBackup, getAiAnalyses, getSettings, importBackup, saveSettings } from "@/lib/data";
+import { deleteAiAnalyses, deleteMemoryItem, exportBackup, getAiAnalyses, getMemoryItems, getSettings, importBackup, saveSettings } from "@/lib/data";
 import { hapticImpact } from "@/lib/haptics";
-import type { Settings } from "@/lib/types";
+import type { MemoryItem, Settings } from "@/lib/types";
 
 type EditableSettingKey =
   | "user_name"
@@ -35,6 +35,8 @@ export default function SettingsPage() {
   const [exportText, setExportText] = useState("");
   const [backupText, setBackupText] = useState("");
   const [importText, setImportText] = useState("");
+  const [memoryItems, setMemoryItems] = useState<MemoryItem[]>([]);
+  const [memoryExport, setMemoryExport] = useState("");
 
   useEffect(() => {
     getSettings()
@@ -91,6 +93,33 @@ export default function SettingsPage() {
     }
   }
 
+  async function loadMemoryVault() {
+    hapticImpact(6);
+    setError("");
+    try {
+      const items = await getMemoryItems(100);
+      setMemoryItems(items);
+      setMemoryExport(JSON.stringify(items, null, 2));
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Unable to load memory vault.");
+    }
+  }
+
+  async function removeMemory(id: string) {
+    hapticImpact(10);
+    setError("");
+    try {
+      await deleteMemoryItem(id);
+      setMemoryItems((current) => {
+        const next = current.filter((item) => item.id !== id);
+        setMemoryExport(JSON.stringify(next, null, 2));
+        return next;
+      });
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Unable to delete memory item.");
+    }
+  }
+
   async function importAllData() {
     hapticImpact(12);
     setError("");
@@ -103,7 +132,17 @@ export default function SettingsPage() {
     }
   }
 
-  if (!settings) return null;
+  if (!settings) {
+    return (
+      <AppShell>
+        <PageTitle eyebrow="Control surface" title="Settings" subtitle="Loading local-first settings and sync state." />
+        {error ? <ErrorBanner message={error} /> : null}
+        <ModuleShell>
+          <p className="text-sm text-muted">Preparing control surface...</p>
+        </ModuleShell>
+      </AppShell>
+    );
+  }
 
   return (
     <AppShell>
@@ -118,7 +157,7 @@ export default function SettingsPage() {
         <div className="mb-4 grid gap-2 sm:grid-cols-3">
           <StatusCell label="Operator" value={settings.user_name || "Self"} detail="Private profile" />
           <StatusCell label="AI provider" value={settings.ai_provider} detail={settings.ai_consent ? "Cloud allowed" : "Cloud locked"} tone={settings.ai_consent ? "good" : "warn"} />
-          <StatusCell label="Backup" value="JSON" detail="No paid storage required" />
+          <StatusCell label="First run" value={settings.onboarding_completed ? "Complete" : "Open"} detail="Onboarding state" tone={settings.onboarding_completed ? "good" : "warn"} />
         </div>
 
         <ModuleShell>
@@ -152,6 +191,14 @@ export default function SettingsPage() {
             <label className="grid gap-2 sm:col-span-2">
               <span className="label">Theme</span>
               <input className="field" value="Dark mode locked" readOnly />
+            </label>
+            <label className="flex min-h-12 items-center gap-3 rounded-md border border-line bg-panel2 px-3 py-2 text-sm text-muted sm:col-span-2">
+              <input
+                type="checkbox"
+                checked={settings.onboarding_completed}
+                onChange={(event) => setSettings((current) => (current ? { ...current, onboarding_completed: event.target.checked } : current))}
+              />
+              First-run onboarding completed.
             </label>
           </div>
           <button type="submit" className="primary-button mt-4">
@@ -206,6 +253,49 @@ export default function SettingsPage() {
               <label className="grid gap-2">
                 <span className="label">AI history export</span>
                 <textarea className="field min-h-64 font-mono text-xs" value={exportText} readOnly />
+              </label>
+            ) : null}
+          </div>
+        </ModuleShell>
+
+        <ModuleShell className="mt-4">
+          <div className="grid gap-4">
+            <SurfaceHeader
+              icon={ShieldCheck}
+              eyebrow="Memory vault"
+              title="Review and prune saved memory"
+              detail="Memory items are future fuel for weekly analysis and pattern detection."
+            />
+            <button type="button" className="secondary-button w-full sm:w-fit" onClick={loadMemoryVault}>
+              Load Memory Items
+            </button>
+            {memoryItems.length ? (
+              <div className="grid gap-2">
+                {memoryItems.map((item) => (
+                  <div key={item.id ?? item.title} className="rounded-md border border-line bg-panel2/70 p-3">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div>
+                        <p className="text-sm font-semibold text-text">{item.title}</p>
+                        <p className="mt-1 text-xs text-ghost">
+                          {item.source_type} · {item.source_date ?? "undated"} · {item.tags_json.join(", ")}
+                        </p>
+                        <p className="mt-2 text-sm leading-6 text-muted">{item.body}</p>
+                      </div>
+                      {item.id ? (
+                        <button type="button" className="secondary-button border-red-900/70 px-3 text-red-200" onClick={() => removeMemory(item.id!)}>
+                          <Trash2 size={16} aria-hidden="true" />
+                          Delete
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+            {memoryExport ? (
+              <label className="grid gap-2">
+                <span className="label">Memory export</span>
+                <textarea className="field min-h-48 font-mono text-xs" value={memoryExport} readOnly />
               </label>
             ) : null}
           </div>

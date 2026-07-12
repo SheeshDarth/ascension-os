@@ -3,6 +3,7 @@
 import { Download, ShieldCheck, WifiOff, X } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { APP_BUILD_VERSION } from "@/lib/deployment";
 import { hapticImpact } from "@/lib/haptics";
 
 type BeforeInstallPromptEvent = Event & {
@@ -51,7 +52,7 @@ export function PwaRuntime() {
 
     if ("serviceWorker" in navigator && (window.location.protocol === "https:" || window.location.hostname === "localhost")) {
       navigator.serviceWorker
-        .register("/sw.js")
+        .register(`/sw.js?v=${encodeURIComponent(APP_BUILD_VERSION)}`)
         .then(() => setSwReady(true))
         .catch(() => setSwReady(false));
     }

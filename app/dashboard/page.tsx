@@ -1,14 +1,16 @@
 "use client";
 
-import { Activity, BarChart3, Brain, CalendarCheck2, Flame, Gauge, Shield, Sparkles, Target, Zap } from "lucide-react";
+import { Activity, ArrowRight, BarChart3, Brain, CalendarCheck2, Flame, Gauge, Shield, Sparkles, Target, Zap } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/AppShell";
+import { StatusCell } from "@/components/SurfaceModules";
 import { Card, EmptyState, ErrorBanner, Metric, PageTitle } from "@/components/ui";
-import { getLogs } from "@/lib/data";
+import { dailyMode, nextBestAction, scoreContributors } from "@/lib/daily-insights";
+import { getLogs, getSettings } from "@/lib/data";
 import { scoreTone, statusForScore } from "@/lib/scoring";
 import { buildWeeklyReview } from "@/lib/weekly";
-import type { DailyLog } from "@/lib/types";
+import type { DailyLog, Settings } from "@/lib/types";
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -71,16 +73,23 @@ function DomainBar({ label, value }: { label: string; value: number }) {
 
 export default function DashboardPage() {
   const [logs, setLogs] = useState<DailyLog[]>([]);
+  const [settings, setSettings] = useState<Settings | null>(null);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    getLogs()
-      .then(setLogs)
+    Promise.all([getLogs(), getSettings()])
+      .then(([nextLogs, nextSettings]) => {
+        setLogs(nextLogs);
+        setSettings(nextSettings);
+      })
       .catch((caught) => setError(caught instanceof Error ? caught.message : "Unable to load dashboard data."));
   }, []);
 
   const current = logs.find((log) => log.date === today());
   const review = useMemo(() => buildWeeklyReview(logs), [logs]);
+  const mode = dailyMode(current?.execution_score ?? 0);
+  const contributors = scoreContributors(current);
+  const best = [...logs].sort((a, b) => b.execution_score - a.execution_score)[0];
 
   return (
     <AppShell>
@@ -90,6 +99,33 @@ export default function DashboardPage() {
         subtitle="A private operating system for daily proof, pattern memory, and ruthless weekly upgrades."
       />
       {error ? <ErrorBanner message={error} /> : null}
+
+      {settings && !settings.onboarding_completed ? (
+        <Card className="mb-4 border-cyan/35">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <span className="signal-chip">
+                <Sparkles size={14} aria-hidden="true" />
+                First run
+              </span>
+              <p className="mt-3 text-xl font-semibold text-text">Arm AscensionOS before the first serious check-in.</p>
+              <p className="mt-1 text-sm leading-6 text-muted">
+                Set your season goal, daily thresholds, and AI consent so the daily loop has context.
+              </p>
+            </div>
+            <Link href="/onboarding" className="primary-button">
+              Open setup
+              <ArrowRight size={17} aria-hidden="true" />
+            </Link>
+          </div>
+        </Card>
+      ) : null}
+
+      <section className="mb-4 grid gap-2 sm:grid-cols-3">
+        <StatusCell label="Daily state" value={mode.mode} detail={mode.detail} tone={mode.tone} />
+        <StatusCell label="Best proof" value={best?.execution_score ?? "--"} detail={best?.date ?? "No logs yet"} tone="good" />
+        <StatusCell label="Next action" value="1 move" detail={nextBestAction(current)} />
+      </section>
 
       <div className="grid gap-4 lg:grid-cols-[1.05fr_0.95fr]">
         <Card className="min-h-[28rem]">
@@ -160,6 +196,18 @@ export default function DashboardPage() {
           </div>
         </Card>
       </div>
+
+      <Card className="mt-4">
+        <div className="mb-3">
+          <p className="text-sm font-semibold text-text">Score contributors</p>
+          <p className="text-xs text-ghost">Oura-style explanation layer for today&apos;s number.</p>
+        </div>
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+          {contributors.map((item) => (
+            <StatusCell key={item.label} label={item.label} value={item.value} detail={item.detail} tone={item.tone} />
+          ))}
+        </div>
+      </Card>
 
       <section className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
         {domains.map(([label, key, Icon]) => (

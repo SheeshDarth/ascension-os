@@ -1,6 +1,7 @@
 "use client";
 
 import { AscensionTierLadder } from "@/components/ProgressIntelligence";
+import { repeatedDistractions, winLeakPatterns } from "@/lib/daily-insights";
 import { scoreTone, statusForScore } from "@/lib/scoring";
 import { buildMemoryStats, type GraphRange } from "@/lib/memory";
 import type { DailyLog } from "@/lib/types";
@@ -179,10 +180,36 @@ function NodeGraph({ logs, range }: { logs: DailyLog[]; range: GraphRange }) {
 
 export function MemoryGraph({ logs, range }: { logs: DailyLog[]; range: GraphRange }) {
   const stats = buildMemoryStats(logs, range);
+  const patterns = winLeakPatterns(stats.logs);
+  const blockers = repeatedDistractions(stats.logs);
 
   return (
     <div className="grid gap-4">
       <AscensionTierLadder score={stats.averageExecution} />
+      <section className="grid gap-2 lg:grid-cols-3" aria-label="Memory pattern cards">
+        <div className="micro-panel">
+          <p className="text-[0.68rem] uppercase tracking-[0.12em] text-ghost">You usually win when</p>
+          <p className="mt-2 text-sm leading-6 text-text">{patterns.win}</p>
+        </div>
+        <div className="micro-panel">
+          <p className="text-[0.68rem] uppercase tracking-[0.12em] text-ghost">You usually leak when</p>
+          <p className="mt-2 text-sm leading-6 text-text">{patterns.leak}</p>
+        </div>
+        <div className="micro-panel">
+          <p className="text-[0.68rem] uppercase tracking-[0.12em] text-ghost">Recurring blockers</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {blockers.length ? (
+              blockers.map((item) => (
+                <span key={item.label} className="signal-chip">
+                  {item.label} · {item.count}
+                </span>
+              ))
+            ) : (
+              <p className="text-sm text-muted">More logs needed.</p>
+            )}
+          </div>
+        </div>
+      </section>
       <NodeGraph logs={logs} range={range} />
       <Timeline logs={stats.logs} />
       {stats.logs.length ? (

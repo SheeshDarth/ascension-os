@@ -11,7 +11,8 @@ export const defaultSettings: Settings = {
   reels_limit: 30,
   sleep_target: "7-8.5 hours",
   ai_provider: "deterministic",
-  ai_consent: false
+  ai_consent: false,
+  onboarding_completed: false
 };
 
 export const seedGoals: Goal[] = [

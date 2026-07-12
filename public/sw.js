@@ -1,4 +1,4 @@
-const CACHE_VERSION = "ascensionos-v1";
+const CACHE_VERSION = "ascensionos-2026-07-12-mega-sprint";
 const SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 

@@ -1,7 +1,7 @@
 "use client";
 
-export type SyncEntity = "daily_logs" | "goals" | "settings" | "weekly_reviews" | "ai_analyses";
-export type SyncAction = "upsert" | "rate" | "delete_all";
+export type SyncEntity = "daily_logs" | "goals" | "settings" | "weekly_reviews" | "ai_analyses" | "memory_items";
+export type SyncAction = "upsert" | "rate" | "delete" | "delete_all";
 
 export type SyncOperation = {
   id: string;
