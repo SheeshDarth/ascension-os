@@ -1,6 +1,13 @@
 "use client";
 
-export type SyncEntity = "daily_logs" | "goals" | "settings" | "weekly_reviews" | "ai_analyses" | "memory_items";
+export type SyncEntity =
+  | "daily_logs"
+  | "goals"
+  | "settings"
+  | "weekly_reviews"
+  | "ai_analyses"
+  | "memory_items"
+  | "device_metric_snapshots";
 export type SyncAction = "upsert" | "rate" | "delete" | "delete_all";
 
 export type SyncOperation = {

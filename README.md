@@ -12,6 +12,7 @@ The app is optimized for private self-use: it saves to a local IndexedDB cache f
 - TypeScript
 - Tailwind CSS
 - Supabase database
+- Capacitor Android bridge for Health Connect and Usage Access
 - Vercel-ready deployment
 
 ## Local Setup
@@ -65,7 +66,7 @@ When Supabase is configured, all AppShell routes require an active session and r
 The app creates seed goals automatically when the `goals` table is empty.
 All Supabase tables are protected with Row Level Security and scoped to the signed-in user.
 
-For an existing prototype database, use `supabase/migrations/001_private_hardening.sql` instead. Read the comments at the top first; old anonymous rows need a one-time `user_id` backfill before `not null` constraints can be applied.
+For an existing prototype database, use `supabase/migrations/001_private_hardening.sql` instead. Read the comments at the top first; old anonymous rows need a one-time `user_id` backfill before `not null` constraints can be applied. Then run `supabase/migrations/002_onboarding_completed.sql` and `supabase/migrations/003_device_metric_snapshots.sql` in order.
 
 ## Environment Variables
 
@@ -96,6 +97,7 @@ Supabase:
 - Run `supabase/schema.sql` for a fresh production database.
 - For an existing database, run pending migrations in order, including `supabase/migrations/002_onboarding_completed.sql`.
 - Confirm RLS is enabled on `daily_logs`, `goals`, `settings`, `weekly_reviews`, `ai_analyses`, and `memory_items`.
+- Confirm RLS is enabled on `device_metric_snapshots`.
 - Confirm every table has owner-only select/insert/update/delete policies using `auth.uid() = user_id`.
 - Enable Google OAuth and email magic links in Supabase Auth.
 - Add redirect URLs for local dev, Vercel preview if used, and production.
@@ -124,6 +126,14 @@ Post-deploy smoke test:
 - Install the PWA on phone and confirm standalone launch.
 - Open a protected route while signed out and confirm it redirects to `/login`.
 - Confirm the analysis endpoint rejects a partial Supabase configuration and never allows unauthenticated Gemini cloud analysis.
+
+## Samsung S23 Integrations
+
+The full browser/PWA cannot access private phone sensors or Android usage history. The optional Android APK uses Capacitor and the native `AscensionDevice` plugin to read daily aggregates through Health Connect and `UsageStatsManager`.
+
+Open `/settings/integrations` in the APK to grant permissions and sync. The check-in screen also has an explicit `Sync from S23` action. The import is intentionally conservative: it stores daily snapshots and fills only blank fields such as steps, sleep, weight, reels, and YouTube minutes. Manual values are never overwritten.
+
+Build instructions live in [`android/README.md`](android/README.md). A deployed URL is required for a complete APK; the committed `public/index.html` is only a native-shell fallback when no URL is configured.
 
 Service worker release rule:
 

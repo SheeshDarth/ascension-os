@@ -122,12 +122,31 @@ create table if not exists memory_items (
 
 create index if not exists memory_items_user_created_idx on memory_items(user_id, created_at desc);
 
+create table if not exists device_metric_snapshots (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  device_id text not null,
+  source text not null,
+  metric_date date not null,
+  metrics_json jsonb not null default '{}'::jsonb,
+  permission_snapshot jsonb not null default '{}'::jsonb,
+  captured_at timestamp with time zone not null default now(),
+  created_at timestamp with time zone default now()
+);
+
+create unique index if not exists device_metric_snapshots_user_device_source_date_idx
+  on device_metric_snapshots(user_id, device_id, source, metric_date);
+
+create index if not exists device_metric_snapshots_user_date_idx
+  on device_metric_snapshots(user_id, metric_date desc);
+
 alter table daily_logs enable row level security;
 alter table goals enable row level security;
 alter table settings enable row level security;
 alter table weekly_reviews enable row level security;
 alter table ai_analyses enable row level security;
 alter table memory_items enable row level security;
+alter table device_metric_snapshots enable row level security;
 
 drop policy if exists "daily_logs_select_own" on daily_logs;
 drop policy if exists "daily_logs_insert_own" on daily_logs;
@@ -182,3 +201,12 @@ create policy "memory_items_select_own" on memory_items for select using (auth.u
 create policy "memory_items_insert_own" on memory_items for insert with check (auth.uid() = user_id);
 create policy "memory_items_update_own" on memory_items for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "memory_items_delete_own" on memory_items for delete using (auth.uid() = user_id);
+
+drop policy if exists "device_metric_snapshots_select_own" on device_metric_snapshots;
+drop policy if exists "device_metric_snapshots_insert_own" on device_metric_snapshots;
+drop policy if exists "device_metric_snapshots_update_own" on device_metric_snapshots;
+drop policy if exists "device_metric_snapshots_delete_own" on device_metric_snapshots;
+create policy "device_metric_snapshots_select_own" on device_metric_snapshots for select using (auth.uid() = user_id);
+create policy "device_metric_snapshots_insert_own" on device_metric_snapshots for insert with check (auth.uid() = user_id);
+create policy "device_metric_snapshots_update_own" on device_metric_snapshots for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "device_metric_snapshots_delete_own" on device_metric_snapshots for delete using (auth.uid() = user_id);

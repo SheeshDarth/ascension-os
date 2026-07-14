@@ -13,7 +13,17 @@ import {
 } from "@/lib/local-first";
 import { calculateScores } from "@/lib/scoring";
 import { supabase } from "@/lib/supabase";
-import type { AiAnalysis, AnalysisResult, DailyLog, Goal, MemoryItem, Settings, WeeklyReview, WeeklyReviewRow } from "@/lib/types";
+import type {
+  AiAnalysis,
+  AnalysisResult,
+  DailyLog,
+  DeviceMetricSnapshot,
+  Goal,
+  MemoryItem,
+  Settings,
+  WeeklyReview,
+  WeeklyReviewRow
+} from "@/lib/types";
 
 const LOGS_KEY = "ascensionos.daily_logs";
 const GOALS_KEY = "ascensionos.goals";
@@ -21,6 +31,7 @@ const SETTINGS_KEY = "ascensionos.settings";
 const REVIEWS_KEY = "ascensionos.weekly_reviews";
 const AI_ANALYSES_KEY = "ascensionos.ai_analyses";
 const MEMORY_ITEMS_KEY = "ascensionos.memory_items";
+const DEVICE_METRICS_KEY = "ascensionos.device_metric_snapshots";
 
 export class DataAccessError extends Error {
   constructor(message: string) {
@@ -159,6 +170,25 @@ async function saveLocalMemoryItem(item: MemoryItem) {
   return saved;
 }
 
+async function saveLocalDeviceMetricSnapshot(snapshot: DeviceMetricSnapshot) {
+  const snapshots = await readLocalValue<DeviceMetricSnapshot[]>(DEVICE_METRICS_KEY, []);
+  const existing = snapshots.find(
+    (item) =>
+      item.device_id === snapshot.device_id && item.source === snapshot.source && item.metric_date === snapshot.metric_date
+  );
+  const saved = {
+    ...snapshot,
+    id: snapshot.id ?? existing?.id ?? crypto.randomUUID(),
+    created_at: snapshot.created_at ?? existing?.created_at ?? new Date().toISOString()
+  };
+  const next = snapshots.filter(
+    (item) => !(item.device_id === saved.device_id && item.source === saved.source && item.metric_date === saved.metric_date)
+  );
+  next.push(saved);
+  await writeLocalValue(DEVICE_METRICS_KEY, next.sort((a, b) => b.captured_at.localeCompare(a.captured_at)));
+  return saved;
+}
+
 async function applySyncOperation(operation: SyncOperation, userId: string) {
   if (!supabase) return;
   switch (operation.entity) {
@@ -219,6 +249,19 @@ async function applySyncOperation(operation: SyncOperation, userId: string) {
       }
       const { error } = await supabase.from("memory_items").upsert({ ...(operation.payload as MemoryItem), user_id: userId });
       if (error) throw new DataAccessError(error.message);
+      return;
+    }
+    case "device_metric_snapshots": {
+      if (operation.action === "delete_all") {
+        const { error } = await supabase.from("device_metric_snapshots").delete().eq("user_id", userId);
+        if (error) throw new DataAccessError(error.message);
+        return;
+      }
+      const { error } = await supabase
+        .from("device_metric_snapshots")
+        .upsert({ ...(operation.payload as DeviceMetricSnapshot), user_id: userId }, { onConflict: "user_id,device_id,source,metric_date" });
+      if (error) throw new DataAccessError(error.message);
+      return;
     }
   }
 }
@@ -458,6 +501,59 @@ export async function deleteMemoryItem(id: string) {
   }
 }
 
+export async function getDeviceMetricSnapshots(limit = 90): Promise<DeviceMetricSnapshot[]> {
+  return cloudOrLocal<DeviceMetricSnapshot[]>(DEVICE_METRICS_KEY, [], async () => {
+    const client = cloudClient();
+    const userId = await requireUserId();
+    const { data, error } = await client
+      .from("device_metric_snapshots")
+      .select("*")
+      .eq("user_id", userId)
+      .order("captured_at", { ascending: false })
+      .limit(limit);
+    if (error) fail(error.message);
+    return (data ?? []) as DeviceMetricSnapshot[];
+  }, (items) => items.length > 0).then((items) => items.slice(0, limit));
+}
+
+export async function saveDeviceMetricSnapshot(snapshot: DeviceMetricSnapshot) {
+  const local = await saveLocalDeviceMetricSnapshot(snapshot);
+  if (supabase) {
+    try {
+      const userId = await requireUserId();
+      const { data, error } = await supabase
+        .from("device_metric_snapshots")
+        .upsert({ ...local, user_id: userId }, { onConflict: "user_id,device_id,source,metric_date" })
+        .select()
+        .single();
+      if (error) fail(error.message);
+      const saved = data as DeviceMetricSnapshot;
+      await saveLocalDeviceMetricSnapshot(saved);
+      await writeSyncSnapshot({ lastError: "" });
+      return saved;
+    } catch (error) {
+      await enqueueSyncOperation({ entity: "device_metric_snapshots", action: "upsert", payload: local });
+      await noteCloudError(error);
+      return local;
+    }
+  }
+  return local;
+}
+
+export async function deleteDeviceMetricSnapshots() {
+  await writeLocalValue<DeviceMetricSnapshot[]>(DEVICE_METRICS_KEY, []);
+  if (!supabase) return;
+  try {
+    const userId = await requireUserId();
+    const { error } = await supabase.from("device_metric_snapshots").delete().eq("user_id", userId);
+    if (error) fail(error.message);
+    await writeSyncSnapshot({ lastError: "" });
+  } catch (error) {
+    await enqueueSyncOperation({ entity: "device_metric_snapshots", action: "delete_all" });
+    await noteCloudError(error);
+  }
+}
+
 export async function getAiAnalyses(): Promise<AiAnalysis[]> {
   return cloudOrLocal<AiAnalysis[]>(AI_ANALYSES_KEY, [], async () => {
     const client = cloudClient();
@@ -558,7 +654,8 @@ export async function exportBackup() {
     settings: await readLocalValue<Settings>(SETTINGS_KEY, defaultSettings),
     weekly_reviews: await readLocalValue<WeeklyReviewRow[]>(REVIEWS_KEY, []),
     ai_analyses: await readLocalValue<AiAnalysis[]>(AI_ANALYSES_KEY, []),
-    memory_items: await readLocalValue<MemoryItem[]>(MEMORY_ITEMS_KEY, [])
+    memory_items: await readLocalValue<MemoryItem[]>(MEMORY_ITEMS_KEY, []),
+    device_metric_snapshots: await readLocalValue<DeviceMetricSnapshot[]>(DEVICE_METRICS_KEY, [])
   };
 }
 
@@ -570,5 +667,6 @@ export async function importBackup(raw: string) {
   await writeLocalValue(REVIEWS_KEY, (backup.weekly_reviews ?? []) as WeeklyReviewRow[]);
   await writeLocalValue(AI_ANALYSES_KEY, sortAnalyses((backup.ai_analyses ?? []) as AiAnalysis[]));
   await writeLocalValue(MEMORY_ITEMS_KEY, (backup.memory_items ?? []) as MemoryItem[]);
+  await writeLocalValue(DEVICE_METRICS_KEY, (backup.device_metric_snapshots ?? []) as DeviceMetricSnapshot[]);
   await writeSyncSnapshot({ lastError: "Backup imported locally. Edit and save an item to push it to Supabase." });
 }

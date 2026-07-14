@@ -1,7 +1,8 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
-import { Brain, DatabaseBackup, RotateCcw, Save, ShieldCheck, SlidersHorizontal, Trash2 } from "lucide-react";
+import Link from "next/link";
+import { Brain, DatabaseBackup, HeartPulse, RotateCcw, Save, ShieldCheck, SlidersHorizontal, Smartphone, Trash2 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { ModuleShell, StatusCell, SurfaceHeader } from "@/components/SurfaceModules";
 import { ErrorBanner, PageTitle } from "@/components/ui";
@@ -152,6 +153,21 @@ export default function SettingsPage() {
         subtitle="Simple targets for the current season. Theme locked to dark for now."
       />
       {error ? <ErrorBanner message={error} /> : null}
+
+      <ModuleShell className="mb-4">
+        <SurfaceHeader
+          icon={Smartphone}
+          eyebrow="Device bridge"
+          title="Connect your Samsung S23"
+          detail="Import Samsung Health and Android screen-time summaries into today's proof from the APK."
+          action={
+            <Link href="/settings/integrations" className="secondary-button">
+              <HeartPulse size={17} aria-hidden="true" />
+              Open integrations
+            </Link>
+          }
+        />
+      </ModuleShell>
 
       <form onSubmit={submit}>
         <div className="mb-4 grid gap-2 sm:grid-cols-3">

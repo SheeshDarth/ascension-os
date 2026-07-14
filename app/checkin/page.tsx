@@ -1,17 +1,19 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
-import { Activity, Brain, CalendarDays, Droplets, Dumbbell, Flame, Moon, Shield, Sparkles, Wallet, Zap } from "lucide-react";
+import { Activity, Brain, CalendarDays, Droplets, Dumbbell, Flame, Moon, RefreshCw, Shield, Smartphone, Sparkles, Wallet, Zap } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { AppShell } from "@/components/AppShell";
 import { Card, EmptyState, ErrorBanner, PageTitle } from "@/components/ui";
 import { numberFields, textFields, toggleFields } from "@/lib/checkin-fields";
-import { getLogByDate, saveLog } from "@/lib/data";
+import { getDeviceMetricSnapshots, getLogByDate, saveDeviceMetricSnapshot, saveLog } from "@/lib/data";
 import { yesterdayDelta } from "@/lib/daily-insights";
+import { applyDeviceMetricsToLog, formatImportedMetric, metricsForDate, snapshotSourceLabel } from "@/lib/device-metrics";
 import { normalizeNumber, normalizeText } from "@/lib/form";
 import { hapticImpact } from "@/lib/haptics";
+import { readNativeDailyMetrics } from "@/lib/native-bridge";
 import { calculateScores, emptyLog } from "@/lib/scoring";
-import type { DailyLog } from "@/lib/types";
+import type { DailyLog, DeviceMetricSnapshot } from "@/lib/types";
 
 const today = () => new Date().toISOString().slice(0, 10);
 const draftKey = "ascensionos.checkin_draft.v1";
@@ -138,6 +140,8 @@ export default function CheckinPage() {
   const [loaded, setLoaded] = useState(false);
   const [saved, setSaved] = useState("");
   const [error, setError] = useState("");
+  const [phoneSnapshot, setPhoneSnapshot] = useState<DeviceMetricSnapshot[]>([]);
+  const [phoneSyncing, setPhoneSyncing] = useState(false);
 
   useEffect(() => {
     Promise.all([getLogByDate(today()), getLogByDate(addDays(today(), -1))])
@@ -162,9 +166,42 @@ export default function CheckinPage() {
     window.localStorage.setItem(draftKey, JSON.stringify(log));
   }, [loaded, log]);
 
+  useEffect(() => {
+    if (!loaded) return;
+    getDeviceMetricSnapshots(7).then(setPhoneSnapshot).catch(() => undefined);
+  }, [loaded]);
+
   const set = <T extends Key>(key: T, value: DailyLog[T]) => setLog((current) => ({ ...current, [key]: value }));
   const preview = calculateScores(log);
   const delta = yesterdayDelta(preview, yesterday);
+  const todayPhoneSnapshots = metricsForDate(phoneSnapshot, log.date);
+
+  async function syncPhoneMetrics() {
+    hapticImpact(8);
+    setPhoneSyncing(true);
+    setError("");
+    setSaved("");
+    try {
+      const result = await readNativeDailyMetrics(log.date);
+      for (const snapshot of result.snapshots ?? []) await saveDeviceMetricSnapshot(snapshot);
+      const merged = applyDeviceMetricsToLog(log, result.snapshots ?? []);
+      setLog(merged.log);
+      setPhoneSnapshot((current) => [
+        ...(result.snapshots ?? []),
+        ...current.filter((currentSnapshot) => !result.snapshots?.some((next) => next.source === currentSnapshot.source && next.metric_date === currentSnapshot.metric_date))
+      ]);
+      setSaved(
+        merged.importedFields.length
+          ? `Imported ${merged.importedFields.length} blank field${merged.importedFields.length === 1 ? "" : "s"}. Review and save proof.`
+          : "Phone signal captured. Your existing manual values were preserved."
+      );
+      if (result.warnings?.length) setError(result.warnings.join(" "));
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Install the Android APK and grant phone permissions before syncing.");
+    } finally {
+      setPhoneSyncing(false);
+    }
+  }
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -217,6 +254,44 @@ export default function CheckinPage() {
                   Draft autosaves on this device. Every input feeds the memory graph and weekly analysis.
                 </p>
               </div>
+            </div>
+          </Card>
+
+          <Card>
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+              <div className="flex min-w-0 items-start gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-cyan/30 bg-cyan/10 text-cyan">
+                  <Smartphone size={18} aria-hidden="true" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-text">Phone telemetry</p>
+                  <p className="mt-1 text-xs leading-5 text-ghost">S23 Health Connect and Usage Access. Blank fields only.</p>
+                </div>
+              </div>
+              <button type="button" className="secondary-button shrink-0" onClick={syncPhoneMetrics} disabled={phoneSyncing}>
+                <RefreshCw size={16} aria-hidden="true" />
+                {phoneSyncing ? "Syncing..." : "Sync from S23"}
+              </button>
+            </div>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              {todayPhoneSnapshots.length ? todayPhoneSnapshots.map((snapshot) => (
+                <div key={`${snapshot.source}-${snapshot.metric_date}`} className="rounded-md border border-line bg-panel2/70 p-3">
+                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-cyan">{snapshotSourceLabel(snapshot.source)}</p>
+                  {snapshot.source === "health_connect" ? (
+                    <div className="mt-2 grid gap-1">
+                      <div className="flex justify-between gap-3 text-sm"><span className="text-muted">Steps</span><span className="font-semibold text-text">{formatImportedMetric(snapshot.metrics_json.steps)}</span></div>
+                      <div className="flex justify-between gap-3 text-sm"><span className="text-muted">Sleep</span><span className="font-semibold text-text">{formatImportedMetric(snapshot.metrics_json.sleep_hours, " h")}</span></div>
+                    </div>
+                  ) : (
+                    <div className="mt-2 grid gap-1">
+                      <div className="flex justify-between gap-3 text-sm"><span className="text-muted">Screen time</span><span className="font-semibold text-text">{formatImportedMetric(snapshot.metrics_json.total_screen_minutes, " min")}</span></div>
+                      <div className="flex justify-between gap-3 text-sm"><span className="text-muted">Short-form</span><span className="font-semibold text-text">{formatImportedMetric(snapshot.metrics_json.reels_minutes, " min")}</span></div>
+                    </div>
+                  )}
+                </div>
+              )) : (
+                <p className="text-sm leading-6 text-muted sm:col-span-2">No phone signal captured for this date. Open Settings - Integrations to grant access, then sync here.</p>
+              )}
             </div>
           </Card>
 

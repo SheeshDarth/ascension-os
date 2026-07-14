@@ -42,6 +42,43 @@ export type DailyLog = {
   updated_at?: string;
 };
 
+export type DeviceMetricSource = "health_connect" | "android_usage_stats" | "manual";
+
+export type DeviceMetrics = {
+  steps?: number;
+  sleep_hours?: number;
+  weight_kg?: number;
+  water_litres?: number;
+  exercise_minutes?: number;
+  total_screen_minutes?: number;
+  reels_minutes?: number;
+  youtube_minutes?: number;
+  social_minutes?: number;
+};
+
+export type DeviceMetricSnapshot = {
+  id?: string;
+  user_id?: string;
+  device_id: string;
+  source: DeviceMetricSource;
+  metric_date: string;
+  metrics_json: DeviceMetrics;
+  permission_snapshot: {
+    health_connect?: boolean;
+    usage_stats?: boolean;
+  };
+  captured_at: string;
+  created_at?: string;
+};
+
+export type IntegrationState = "connected" | "permission_required" | "unavailable" | "unsupported" | "unknown";
+
+export type NativeIntegrationStatus = {
+  runtime: "android" | "browser";
+  health_connect: IntegrationState;
+  usage_stats: IntegrationState;
+};
+
 export type Goal = {
   id?: string;
   user_id?: string;
