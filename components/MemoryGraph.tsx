@@ -1,10 +1,12 @@
 "use client";
 
+import Link from "next/link";
 import { AscensionTierLadder } from "@/components/ProgressIntelligence";
 import { repeatedDistractions, winLeakPatterns } from "@/lib/daily-insights";
+import { buildDeviceTelemetryStats, formatImportedMetric, snapshotSourceLabel } from "@/lib/device-metrics";
 import { scoreTone, statusForScore } from "@/lib/scoring";
 import { buildMemoryStats, type GraphRange } from "@/lib/memory";
-import type { DailyLog } from "@/lib/types";
+import type { DailyLog, DeviceMetricSnapshot } from "@/lib/types";
 
 const clamp = (value: number, min = 0, max = 100) => Math.max(min, Math.min(max, value));
 
@@ -178,7 +180,80 @@ function NodeGraph({ logs, range }: { logs: DailyLog[]; range: GraphRange }) {
   );
 }
 
-export function MemoryGraph({ logs, range }: { logs: DailyLog[]; range: GraphRange }) {
+function DeviceTelemetryBand({ snapshots, range }: { snapshots: DeviceMetricSnapshot[]; range: GraphRange }) {
+  const stats = buildDeviceTelemetryStats(snapshots, range);
+  const recent = [...stats.days].filter((day) => day.hasSignal).reverse().slice(0, 5);
+
+  return (
+    <section className="panel p-4" aria-label="S23 telemetry coverage">
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="text-sm font-semibold text-text">S23 Telemetry Layer</p>
+          <p className="mt-1 text-xs leading-5 text-ghost">
+            Health Connect and Usage Access signals inside the same {range}-day window as the memory graph.
+          </p>
+        </div>
+        <Link href="/settings/integrations" className="secondary-button px-3">
+          Sync
+        </Link>
+      </div>
+
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+        {[
+          ["Coverage", `${stats.capturedDays}/${range}`, "Days with phone signal"],
+          ["Avg sleep", stats.capturedDays ? formatImportedMetric(stats.averageSleep, "h") : "No signal", "Recovery baseline"],
+          ["Avg steps", stats.capturedDays ? Math.round(stats.averageSteps).toLocaleString() : "No signal", "Movement baseline"],
+          ["Avg screen", stats.capturedDays ? formatImportedMetric(stats.averageScreenMinutes, "m") : "No signal", "Total phone usage"],
+          ["Avg short-form", stats.capturedDays ? formatImportedMetric(stats.averageShortFormMinutes, "m") : "No signal", "Reels/social leak"]
+        ].map(([label, value, detail]) => (
+          <div key={label} className="micro-panel">
+            <p className="text-[0.68rem] uppercase tracking-[0.12em] text-ghost">{label}</p>
+            <p className="mt-1 text-xl font-semibold tabular-nums text-text">{value}</p>
+            <p className="mt-1 text-xs text-muted">{detail}</p>
+          </div>
+        ))}
+      </div>
+
+      {recent.length ? (
+        <div className="mt-3 grid gap-2">
+          {recent.map((day) => {
+            const shortForm = day.metrics.reels_minutes ?? day.metrics.social_minutes;
+            return (
+              <div key={day.date} className="rounded-md border border-line bg-panel2/70 p-3">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-text">{day.date}</p>
+                    <p className="mt-1 text-xs text-ghost">{day.sources.map(snapshotSourceLabel).join(" + ")}</p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-xs text-muted sm:grid-cols-4 sm:text-right">
+                    <span>{formatImportedMetric(day.metrics.sleep_hours, "h")} sleep</span>
+                    <span>{formatImportedMetric(day.metrics.steps)} steps</span>
+                    <span>{formatImportedMetric(day.metrics.total_screen_minutes, "m")} screen</span>
+                    <span>{formatImportedMetric(shortForm, "m")} short</span>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="mt-3 rounded-md border border-dashed border-line bg-panel2/60 p-4 text-sm leading-6 text-muted">
+          No phone telemetry in this range yet. Sync from the Android APK to connect sleep, steps, and screen-time patterns.
+        </div>
+      )}
+    </section>
+  );
+}
+
+export function MemoryGraph({
+  logs,
+  range,
+  deviceSnapshots = []
+}: {
+  logs: DailyLog[];
+  range: GraphRange;
+  deviceSnapshots?: DeviceMetricSnapshot[];
+}) {
   const stats = buildMemoryStats(logs, range);
   const patterns = winLeakPatterns(stats.logs);
   const blockers = repeatedDistractions(stats.logs);
@@ -186,6 +261,7 @@ export function MemoryGraph({ logs, range }: { logs: DailyLog[]; range: GraphRan
   return (
     <div className="grid gap-4">
       <AscensionTierLadder score={stats.averageExecution} />
+      <DeviceTelemetryBand snapshots={deviceSnapshots} range={range} />
       <section className="grid gap-2 lg:grid-cols-3" aria-label="Memory pattern cards">
         <div className="micro-panel">
           <p className="text-[0.68rem] uppercase tracking-[0.12em] text-ghost">You usually win when</p>
@@ -201,7 +277,7 @@ export function MemoryGraph({ logs, range }: { logs: DailyLog[]; range: GraphRan
             {blockers.length ? (
               blockers.map((item) => (
                 <span key={item.label} className="signal-chip">
-                  {item.label} · {item.count}
+                  {item.label} x{item.count}
                 </span>
               ))
             ) : (

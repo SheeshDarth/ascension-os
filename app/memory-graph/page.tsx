@@ -5,19 +5,23 @@ import { AppShell } from "@/components/AppShell";
 import { MemoryGraph } from "@/components/MemoryGraph";
 import { PatternSnapshot } from "@/components/ProgressIntelligence";
 import { EmptyState, ErrorBanner, PageTitle } from "@/components/ui";
-import { getLogs } from "@/lib/data";
+import { getDeviceMetricSnapshots, getLogs } from "@/lib/data";
 import { hapticImpact } from "@/lib/haptics";
 import type { GraphRange } from "@/lib/memory";
-import type { DailyLog } from "@/lib/types";
+import type { DailyLog, DeviceMetricSnapshot } from "@/lib/types";
 
 export default function MemoryGraphPage() {
   const [logs, setLogs] = useState<DailyLog[]>([]);
+  const [deviceSnapshots, setDeviceSnapshots] = useState<DeviceMetricSnapshot[]>([]);
   const [error, setError] = useState("");
   const [range, setRange] = useState<GraphRange>(30);
 
   useEffect(() => {
-    getLogs()
-      .then(setLogs)
+    Promise.all([getLogs(), getDeviceMetricSnapshots(90)])
+      .then(([nextLogs, nextDeviceSnapshots]) => {
+        setLogs(nextLogs);
+        setDeviceSnapshots(nextDeviceSnapshots);
+      })
       .catch((caught) => setError(caught instanceof Error ? caught.message : "Unable to load memory graph."));
   }, []);
 
@@ -53,7 +57,7 @@ export default function MemoryGraphPage() {
         ))}
       </div>
       <div className="mt-4">
-        <MemoryGraph logs={logs} range={range} />
+        <MemoryGraph logs={logs} range={range} deviceSnapshots={deviceSnapshots} />
       </div>
     </AppShell>
   );

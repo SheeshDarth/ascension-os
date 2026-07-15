@@ -133,6 +133,8 @@ The full browser/PWA cannot access private phone sensors or Android usage histor
 
 Open `/settings/integrations` in the APK to grant permissions and sync. The check-in screen also has an explicit `Sync from S23` action. The import is intentionally conservative: it stores daily snapshots and fills only blank fields such as steps, sleep, weight, reels, and YouTube minutes. Manual values are never overwritten.
 
+Synced snapshots also power the dashboard's S23 intelligence panel and the memory graph's telemetry layer. Those views turn sleep, steps, total screen time, and short-form usage into recovery, body, focus-risk, coverage, and explicit-window trend signals.
+
 Build instructions live in [`android/README.md`](android/README.md). A deployed URL is required for a complete APK; the committed `public/index.html` is only a native-shell fallback when no URL is configured.
 
 Service worker release rule:
@@ -166,6 +168,7 @@ Open `/memory-graph` to visualize performance from both phone and laptop. It inc
 - A node graph connecting Execution to Physique, Career, Discipline, Dopamine Control, and Self-Respect
 - A recent execution timeline
 - Trend cards for average execution, current streak, best streak, and weakest domain
+- An S23 telemetry layer for synced sleep, steps, screen time, and short-form averages
 - A score table for accessibility and quick scanning
 
 ## Visualization MCP

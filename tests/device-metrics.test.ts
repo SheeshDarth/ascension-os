@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { applyDeviceMetricsToLog, formatImportedMetric, metricsForDate, snapshotSourceLabel } from "../lib/device-metrics";
+import {
+  aggregateDeviceMetrics,
+  applyDeviceMetricsToLog,
+  buildDailyDeviceInsight,
+  buildDeviceTelemetryStats,
+  formatImportedMetric,
+  metricsForDate,
+  snapshotSourceLabel
+} from "../lib/device-metrics";
 import { emptyLog } from "../lib/scoring";
 import type { DeviceMetricSnapshot } from "../lib/types";
 
@@ -58,5 +66,37 @@ describe("device metrics", () => {
     expect(formatImportedMetric(7.56, " h")).toBe("7.6 h");
     expect(formatImportedMetric(undefined)).toBe("No signal");
     expect(snapshotSourceLabel("android_usage_stats")).toBe("Android Usage Access");
+  });
+
+  it("aggregates health and usage snapshots for one date", () => {
+    const day = aggregateDeviceMetrics(snapshots, "2026-07-14");
+
+    expect(day.hasSignal).toBe(true);
+    expect(day.metrics.steps).toBe(8123);
+    expect(day.metrics.reels_minutes).toBe(35);
+    expect(day.sources).toEqual(["health_connect", "android_usage_stats"]);
+    expect(day.capturedAt).toBe("2026-07-14T12:01:00.000Z");
+  });
+
+  it("builds an explainable daily device insight", () => {
+    const insight = buildDailyDeviceInsight(snapshots, "2026-07-14", {
+      sleep_target: "7-8.5 hours",
+      reels_limit: 30
+    });
+
+    expect(insight.hasSignal).toBe(true);
+    expect(insight.readinessScore).toBe(75);
+    expect(insight.focusRisk).toBeGreaterThan(65);
+    expect(insight.nextAction).toContain("short-form cutoff");
+  });
+
+  it("builds explicit-window telemetry stats", () => {
+    const stats = buildDeviceTelemetryStats(snapshots, 7, new Date("2026-07-14T00:00:00.000Z"));
+
+    expect(stats.days).toHaveLength(7);
+    expect(stats.capturedDays).toBe(2);
+    expect(stats.averageSleep).toBe(7.5);
+    expect(stats.averageSteps).toBe(7562);
+    expect(stats.averageShortFormMinutes).toBe(35);
   });
 });

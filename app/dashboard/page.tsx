@@ -1,16 +1,17 @@
 "use client";
 
-import { Activity, ArrowRight, BarChart3, Brain, CalendarCheck2, Flame, Gauge, Shield, Sparkles, Target, Zap } from "lucide-react";
+import { Activity, ArrowRight, BarChart3, Brain, CalendarCheck2, Flame, Gauge, Shield, Smartphone, Sparkles, Target, Zap } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { StatusCell } from "@/components/SurfaceModules";
 import { Card, EmptyState, ErrorBanner, Metric, PageTitle } from "@/components/ui";
 import { dailyMode, nextBestAction, scoreContributors } from "@/lib/daily-insights";
-import { getLogs, getSettings } from "@/lib/data";
+import { getDeviceMetricSnapshots, getLogs, getSettings } from "@/lib/data";
+import { buildDailyDeviceInsight } from "@/lib/device-metrics";
 import { scoreTone, statusForScore } from "@/lib/scoring";
 import { buildWeeklyReview } from "@/lib/weekly";
-import type { DailyLog, Settings } from "@/lib/types";
+import type { DailyLog, DeviceMetricSnapshot, Settings } from "@/lib/types";
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -73,14 +74,16 @@ function DomainBar({ label, value }: { label: string; value: number }) {
 
 export default function DashboardPage() {
   const [logs, setLogs] = useState<DailyLog[]>([]);
+  const [deviceSnapshots, setDeviceSnapshots] = useState<DeviceMetricSnapshot[]>([]);
   const [settings, setSettings] = useState<Settings | null>(null);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    Promise.all([getLogs(), getSettings()])
-      .then(([nextLogs, nextSettings]) => {
+    Promise.all([getLogs(), getSettings(), getDeviceMetricSnapshots(30)])
+      .then(([nextLogs, nextSettings, nextDeviceSnapshots]) => {
         setLogs(nextLogs);
         setSettings(nextSettings);
+        setDeviceSnapshots(nextDeviceSnapshots);
       })
       .catch((caught) => setError(caught instanceof Error ? caught.message : "Unable to load dashboard data."));
   }, []);
@@ -90,6 +93,17 @@ export default function DashboardPage() {
   const mode = dailyMode(current?.execution_score ?? 0);
   const contributors = scoreContributors(current);
   const best = [...logs].sort((a, b) => b.execution_score - a.execution_score)[0];
+  const deviceInsight = useMemo(
+    () => buildDailyDeviceInsight(deviceSnapshots, today(), settings ?? undefined),
+    [deviceSnapshots, settings]
+  );
+  const deviceTone = deviceInsight.hasSignal
+    ? deviceInsight.readinessScore >= 75
+      ? "good"
+      : deviceInsight.readinessScore >= 50
+        ? "warn"
+        : "danger"
+    : "warn";
 
   return (
     <AppShell>
@@ -121,10 +135,16 @@ export default function DashboardPage() {
         </Card>
       ) : null}
 
-      <section className="mb-4 grid gap-2 sm:grid-cols-3">
+      <section className="mb-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
         <StatusCell label="Daily state" value={mode.mode} detail={mode.detail} tone={mode.tone} />
         <StatusCell label="Best proof" value={best?.execution_score ?? "--"} detail={best?.date ?? "No logs yet"} tone="good" />
         <StatusCell label="Next action" value="1 move" detail={nextBestAction(current)} />
+        <StatusCell
+          label="Phone signal"
+          value={deviceInsight.hasSignal ? `${deviceInsight.readinessScore}/100` : "Sync"}
+          detail={deviceInsight.hasSignal ? deviceInsight.summary : "Connect Health + Usage data."}
+          tone={deviceTone}
+        />
       </section>
 
       <div className="grid gap-4 lg:grid-cols-[1.05fr_0.95fr]">
@@ -196,6 +216,35 @@ export default function DashboardPage() {
           </div>
         </Card>
       </div>
+
+      <Card className="mt-4 border-cyan/25">
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <span className="signal-chip">
+              <Smartphone size={14} aria-hidden="true" />
+              S23 intelligence
+            </span>
+            <p className="mt-3 text-2xl font-semibold leading-tight text-text">
+              {deviceInsight.hasSignal ? `${deviceInsight.readinessScore}/100 readiness` : "Phone telemetry not synced yet"}
+            </p>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-muted">{deviceInsight.summary}</p>
+            <p className="mt-2 text-sm font-semibold text-cyan">{deviceInsight.nextAction}</p>
+          </div>
+          <div className="flex shrink-0 gap-2">
+            <Link href="/settings/integrations" className="secondary-button px-3">
+              Sync phone
+            </Link>
+            <Link href="/checkin" className="primary-button px-3">
+              Apply
+            </Link>
+          </div>
+        </div>
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+          {deviceInsight.cards.map((card) => (
+            <StatusCell key={card.label} label={card.label} value={card.value} detail={card.detail} tone={card.tone} />
+          ))}
+        </div>
+      </Card>
 
       <Card className="mt-4">
         <div className="mb-3">
