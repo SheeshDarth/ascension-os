@@ -2,34 +2,51 @@
 
 Proof over potential.
 
-AscensionOS is a dark, mobile-first personal transformation dashboard for Siddharth. It is built to log daily proof in under two minutes, calculate execution scores, track weekly patterns, and export a brutal weekly review for ChatGPT.
+AscensionOS is a private, mobile-first growth operating system for daily proof, performance memory, weekly review, and personal telemetry. It is built for one core loop:
 
-The app is optimized for private self-use: it saves to a local IndexedDB cache first, queues Supabase sync when the network is unavailable, and keeps working offline on phone or laptop.
+1. Open on phone or laptop.
+2. See today's state immediately.
+3. Log proof in under 60 seconds.
+4. Understand why the score changed.
+5. Get one next action.
+6. Return tomorrow with momentum.
+
+The app is optimized for private self-use. It keeps a local cache, queues sync when offline, and uses Supabase only when configured.
+
+## Current Capabilities
+
+- Futuristic app-style landing page and cockpit UI.
+- Google OAuth primary login with email magic-link fallback.
+- Daily proof check-in with autosave and score preview.
+- Execution, discipline, career, dopamine, physique, and self-respect scoring.
+- Dashboard command center with daily state, score contributors, next action, and S23 intelligence.
+- Memory Graph with 7, 30, and 90 day windows.
+- Weekly review export and deterministic AI analysis.
+- Optional Gemini weekly analysis through a server-side API route.
+- Local backup export/import.
+- PWA install support.
+- Capacitor Android bridge for Samsung S23 Health Connect and Usage Access telemetry.
 
 ## Tech Stack
 
-- Next.js
+- Next.js 15
+- React 19
 - TypeScript
 - Tailwind CSS
-- Supabase database
-- Capacitor Android bridge for Health Connect and Usage Access
-- Vercel-ready deployment
+- Supabase Auth and Postgres
+- Vitest
+- Capacitor Android
+- Vercel deployment target
 
-## Local Setup
+## Quick Start
 
-1. Install dependencies:
+Install dependencies:
 
 ```bash
 npm install
 ```
 
-2. Copy the environment template:
-
-```bash
-cp .env.example .env.local
-```
-
-3. Add Supabase keys to `.env.local`:
+Create `.env.local` in the project root:
 
 ```bash
 NEXT_PUBLIC_SUPABASE_URL=
@@ -37,36 +54,31 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=
 GEMINI_API_KEY=
 ```
 
-4. Start the dev server:
+For local-only development, leave the Supabase values empty or omit `.env.local`. The app will use local storage and IndexedDB fallbacks.
+
+Start the dev server:
 
 ```bash
 npm run dev
 ```
 
-Open `http://localhost:3000/dashboard`.
+Open:
 
-If Supabase keys are missing, the app uses localStorage as a development fallback. For real phone access and persistence across devices, configure Supabase.
+```text
+http://localhost:3000
+```
 
-When Supabase is configured, AscensionOS still keeps a local IndexedDB cache. If the cloud request fails, reads fall back to the last local cache and writes are queued for the next online sync. A small status strip appears when offline, when sync is pending, or when the last sync attempt failed.
+For phone testing on the same Wi-Fi, bind the dev server to all interfaces:
 
-When Supabase is configured, all AppShell routes require an active session and redirect signed-out users to `/login`. The session check reads the local Supabase session so an installed app can reopen offline; cloud sync still waits for the network. Keep both Supabase environment variables present together. A partial configuration is treated as a deployment error rather than silently becoming local-only mode.
+```bash
+npm run dev -- --hostname 0.0.0.0 --port 3001
+```
 
-## Supabase Setup
+Then open the laptop LAN URL on the phone, for example:
 
-1. Create a new Supabase project.
-2. Open the SQL editor.
-3. Run `supabase/schema.sql`.
-4. Enable email magic-link auth in Supabase Auth settings.
-5. Enable Google as an OAuth provider in Supabase Auth settings.
-6. Add your local and deployed URLs to Supabase Auth redirect URLs.
-7. Copy the project URL and anon key into `.env.local`.
-8. Optional: add `GEMINI_API_KEY` for cloud AI weekly analysis.
-9. Restart the dev server.
-
-The app creates seed goals automatically when the `goals` table is empty.
-All Supabase tables are protected with Row Level Security and scoped to the signed-in user.
-
-For an existing prototype database, use `supabase/migrations/001_private_hardening.sql` instead. Read the comments at the top first; old anonymous rows need a one-time `user_id` backfill before `not null` constraints can be applied. Then run `supabase/migrations/002_onboarding_completed.sql` and `supabase/migrations/003_device_metric_snapshots.sql` in order.
+```text
+http://192.168.1.20:3001
+```
 
 ## Environment Variables
 
@@ -76,80 +88,74 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=
 GEMINI_API_KEY=
 ```
 
-## Vercel Deployment
+Rules:
 
-1. Push this project to GitHub.
-2. Import it in Vercel.
-3. Add the two Supabase environment variables in Vercel project settings.
-4. Deploy.
-5. Open `/dashboard` from your phone.
+- `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` must be present together.
+- If only one Supabase value is present, AscensionOS treats it as a configuration error.
+- `GEMINI_API_KEY` is server-side only. Never expose it in client code.
+- Gemini is optional. Deterministic analysis works without it.
 
-## Production Deployment Checklist
+## Supabase Setup
 
-Run this before every production deploy:
+Fresh database:
 
-```bash
-npm run check
+1. Create a Supabase project.
+2. Open the SQL editor.
+3. Run `supabase/schema.sql`.
+4. Enable Google OAuth in Supabase Auth.
+5. Enable email magic links as the fallback auth path.
+6. Add local and deployed URLs to Auth redirect URLs.
+7. Add the project URL and anon key to `.env.local`.
+8. Restart the dev server.
+
+Existing prototype database:
+
+1. Read the comments at the top of `supabase/migrations/001_private_hardening.sql`.
+2. Backfill old anonymous rows with your Supabase Auth `user_id`.
+3. Run migrations in order:
+
+```text
+supabase/migrations/001_private_hardening.sql
+supabase/migrations/002_onboarding_completed.sql
+supabase/migrations/003_device_metric_snapshots.sql
 ```
 
-Supabase:
+Protected tables:
 
-- Run `supabase/schema.sql` for a fresh production database.
-- For an existing database, run pending migrations in order, including `supabase/migrations/002_onboarding_completed.sql`.
-- Confirm RLS is enabled on `daily_logs`, `goals`, `settings`, `weekly_reviews`, `ai_analyses`, and `memory_items`.
-- Confirm RLS is enabled on `device_metric_snapshots`.
-- Confirm every table has owner-only select/insert/update/delete policies using `auth.uid() = user_id`.
-- Enable Google OAuth and email magic links in Supabase Auth.
-- Add redirect URLs for local dev, Vercel preview if used, and production.
+- `daily_logs`
+- `goals`
+- `settings`
+- `weekly_reviews`
+- `ai_analyses`
+- `memory_items`
+- `device_metric_snapshots`
 
-Vercel:
+Every protected table should have RLS enabled and owner-only policies using `auth.uid() = user_id`.
 
-- Import the private GitHub repo.
-- Add:
-  - `NEXT_PUBLIC_SUPABASE_URL`
-  - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-  - `GEMINI_API_KEY` if Gemini weekly analysis is desired
-- Deploy from `master`.
-- After deploy, hard refresh the installed PWA once when `lib/deployment.ts` changes because the service worker cache version is intentionally pinned per release.
+## Main Routes
 
-Post-deploy smoke test:
+- `/` - app launch surface.
+- `/login` - Google OAuth and magic-link login.
+- `/onboarding` - first-run calibration.
+- `/dashboard` - daily command center.
+- `/checkin` - daily proof protocol.
+- `/memory-graph` - performance memory graph.
+- `/weekly-review` - weekly review and AI analysis.
+- `/history` - daily proof ledger and memory creation.
+- `/goals` - goal tracker.
+- `/settings` - AI provider, backup, memory, sync, and account settings.
+- `/settings/integrations` - Android phone telemetry bridge.
 
-- Open `/`, `/login`, `/dashboard`, `/checkin`, `/memory-graph`, `/weekly-review`, `/history`, `/goals`, `/settings`, `/offline.html`, `/sw.js`, and `/manifest.webmanifest`.
-- Sign in with Google.
-- Log proof on laptop and confirm it appears on phone.
-- Change settings on phone and confirm they appear on laptop.
-- Complete first-run onboarding on a fresh browser profile.
-- Save a check-in while offline, reconnect, and confirm sync status clears.
-- Export and import a local backup from `/settings`.
-- Run deterministic weekly analysis without Gemini.
-- If `GEMINI_API_KEY` is configured, run Gemini analysis after consent.
-- Install the PWA on phone and confirm standalone launch.
-- Open a protected route while signed out and confirm it redirects to `/login`.
-- Confirm the analysis endpoint rejects a partial Supabase configuration and never allows unauthenticated Gemini cloud analysis.
+## Daily Proof Loop
 
-## Samsung S23 Integrations
+Use `/checkin` once per day. Track only what happened:
 
-The full browser/PWA cannot access private phone sensors or Android usage history. The optional Android APK uses Capacitor and the native `AscensionDevice` plugin to read daily aggregates through Health Connect and `UsageStatsManager`.
-
-Open `/settings/integrations` in the APK to grant permissions and sync. The check-in screen also has an explicit `Sync from S23` action. The import is intentionally conservative: it stores daily snapshots and fills only blank fields such as steps, sleep, weight, reels, and YouTube minutes. Manual values are never overwritten.
-
-Synced snapshots also power the dashboard's S23 intelligence panel and the memory graph's telemetry layer. Those views turn sleep, steps, total screen time, and short-form usage into recovery, body, focus-risk, coverage, and explicit-window trend signals.
-
-Build instructions live in [`android/README.md`](android/README.md). A deployed URL is required for a complete APK; the committed `public/index.html` is only a native-shell fallback when no URL is configured.
-
-Service worker release rule:
-
-- Update `APP_BUILD_VERSION` in `lib/deployment.ts` and `CACHE_VERSION` in `public/sw.js` together for releases that change cached shell behavior.
-
-## Daily Use
-
-Use `/login` to send yourself a Supabase magic link, then use `/checkin` once per day. Log only what happened:
-
-- Gym, diet, sleep, physique basics
-- DSA, NIRMIQ, academics, deep work
-- Dopamine control, reels, YouTube, smoking
-- Money earned/spent
-- Hardest task, biggest distraction, notes
+- Sleep, wake time, water, weight, steps, gym, diet, workout quality.
+- DSA, NIRMIQ, academics, deep work.
+- Porn relapse, masturbation count, reels, YouTube, smoking.
+- Money earned and spent.
+- Grooming, skincare, social action.
+- Hardest task, biggest distraction, mood, self-respect, notes.
 
 The app calculates:
 
@@ -160,57 +166,178 @@ The app calculates:
 - Physique Score
 - Self-Respect Score
 
-## Memory Graph
+## S23 Health And Screen-Time Bridge
 
-Open `/memory-graph` to visualize performance from both phone and laptop. It includes:
+The browser/PWA cannot directly read private Samsung Health or Android usage history. For those signals, use the Android APK.
 
-- 7, 30, and 90 day performance windows
-- A node graph connecting Execution to Physique, Career, Discipline, Dopamine Control, and Self-Respect
-- A recent execution timeline
-- Trend cards for average execution, current streak, best streak, and weakest domain
-- An S23 telemetry layer for synced sleep, steps, screen time, and short-form averages
-- A score table for accessibility and quick scanning
+The native Capacitor plugin reads daily aggregates from:
 
-## Visualization MCP
+- Android Health Connect: steps, sleep, exercise, weight.
+- Android Usage Access: total screen time, YouTube, Instagram/TikTok style short-form usage, social usage.
 
-For future experimental views, Codex is configured with the AntV chart MCP server as `ascension_progress_charts`. Use it for non-generic growth visuals such as radar personality matrices, sankey habit loops, network maps, mind maps, tier ladders, and milestone timelines.
+Where the data appears:
 
-## Weekly Review Export
+- `/settings/integrations` grants permissions, syncs, reviews recent snapshots, and deletes imported telemetry.
+- `/checkin` has `Sync from S23` and fills blank fields only.
+- `/dashboard` shows S23 readiness, recovery, body signal, focus risk, source, and next action.
+- `/memory-graph` shows telemetry coverage and 7/30/90 day averages.
 
-Open `/weekly-review` and press `Export Weekly Review for ChatGPT`. The app saves the weekly export to Supabase when configured, then copies a markdown report with scores, totals, best/worst days, patterns, and next-week commitments.
+Manual values always win. Imported phone values only fill blank numeric fields.
+
+Android build details are in `android/README.md`.
+
+## Build Android APK
+
+For production-style APK testing, point Capacitor at the deployed app:
+
+```powershell
+$env:CAPACITOR_SERVER_URL = "https://your-ascensionos-domain.vercel.app"
+npx.cmd cap sync android
+$env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"
+$env:ANDROID_HOME = "$env:LOCALAPPDATA\Android\Sdk"
+Push-Location android
+.\gradlew.bat assembleDebug --no-daemon
+Pop-Location
+```
+
+The debug APK is created at:
+
+```text
+android/app/build/outputs/apk/debug/app-debug.apk
+```
+
+For local Wi-Fi APK testing, set `CAPACITOR_SERVER_URL` to the laptop LAN URL, not `localhost`.
 
 ## AI Performance Analysis
 
-Open `/settings` to choose the AI provider:
+Open `/settings` to choose the provider:
 
 - `Off`: no AI analysis.
-- `Deterministic offline`: rule-based analysis from logs and weekly scores.
+- `Deterministic offline`: local rule-based weekly analysis.
 - `Gemini cloud`: server-side Gemini analysis when `GEMINI_API_KEY` exists and cloud consent is enabled.
 
-The weekly review page shows a data preview before analysis. Gemini is never called from browser code. Cloud prompts use a compact weekly digest instead of raw daily logs to preserve free quota and reduce data exposure. If Gemini is unavailable, missing, offline, or returns invalid output, AscensionOS falls back to deterministic analysis. AI analysis history can be exported or deleted from settings, and each analysis can be rated useful/not useful.
+Gemini is never called from browser code. The weekly analysis endpoint requires authentication when cloud analysis is requested. If Gemini is missing, offline, fails, or returns invalid output, AscensionOS falls back to deterministic analysis.
+
+AI analysis results can be exported, deleted, rated useful/not useful, and corrected with notes.
+
+## Memory System
+
+AscensionOS currently uses a lightweight memory layer:
+
+- Daily logs form the performance graph.
+- Weekly reviews can be saved as memory.
+- History items can be saved as memory.
+- Memory items support tags such as `win`, `failure`, `relapse`, `breakthrough`, `warning`, `goal`, and `identity`.
+
+Embeddings, vector search, and local phone LLM inference are intentionally deferred until the rule-based memory layer proves useful.
 
 ## Local Backup
 
-Open `/settings` to export the full local cache as JSON or import a previous backup. This is intended as the zero-cost escape hatch if a free-tier provider pauses, fails, or needs to be replaced.
+Open `/settings` to export or import the local cache as JSON. Backups include:
 
-Paste it into ChatGPT and ask for:
+- daily logs
+- goals
+- settings
+- weekly reviews
+- AI analyses
+- memory items
+- device metric snapshots
 
-```text
-Brutal review / plan adjustment / discipline reset
+This is the zero-cost escape hatch if a provider fails, pauses, or needs to be replaced.
+
+## PWA And Offline Notes
+
+- `public/manifest.webmanifest` defines app name, install behavior, icons, and shortcuts.
+- `public/sw.js` provides the offline shell.
+- `lib/deployment.ts` contains the app build version.
+
+Release rule:
+
+- Update `APP_BUILD_VERSION` in `lib/deployment.ts` and `CACHE_VERSION` in `public/sw.js` together when cached shell behavior changes.
+
+## Vercel Deployment
+
+1. Push the private GitHub repo.
+2. Import the repo into Vercel.
+3. Add environment variables:
+
+```bash
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+GEMINI_API_KEY=
 ```
 
-## Security Note
+4. Deploy from `master`.
+5. Add the production URL to Supabase Auth redirect URLs.
+6. Test login, sync, weekly analysis, PWA install, and offline shell.
 
-This app stores personal data. Do not make the database public.
+## Production Checklist
 
-The provided schema enables Row Level Security and owner-only policies. Before sharing the app more broadly:
+Before deploy:
 
-- Keep the repo and Supabase project private.
-- Confirm Supabase Auth redirect URLs only include trusted domains.
-- Never expose service-role keys in the browser.
-- Never expose `GEMINI_API_KEY` in client-side code.
+```bash
+npm run check
+```
 
-## Quality Checks
+Smoke test:
+
+- `/`
+- `/login`
+- `/dashboard`
+- `/checkin`
+- `/memory-graph`
+- `/weekly-review`
+- `/history`
+- `/goals`
+- `/settings`
+- `/settings/integrations`
+- `/offline.html`
+- `/sw.js`
+- `/manifest.webmanifest`
+
+Manual acceptance:
+
+- Google login works.
+- Magic link still works.
+- Log proof on laptop and confirm it appears on phone.
+- Change settings on phone and confirm laptop reflects them.
+- Save a check-in offline and confirm it syncs later.
+- Run deterministic weekly analysis without Gemini.
+- Run Gemini analysis only after consent.
+- Install PWA on phone.
+- Build APK with `CAPACITOR_SERVER_URL`.
+- Sync S23 telemetry from the APK.
+- Confirm RLS blocks cross-user data access.
+
+## Troubleshooting
+
+Blank localhost:
+
+- Confirm the dev server is running.
+- Try `http://localhost:3000`.
+- If testing on phone, use the laptop LAN IP and bind Next to `0.0.0.0`.
+
+Supabase login loops:
+
+- Confirm both Supabase environment variables are present.
+- Confirm redirect URLs include local and deployed app URLs.
+- Restart the dev server after changing `.env.local`.
+
+Phone telemetry missing:
+
+- Use the APK, not the browser-only PWA.
+- Grant Health Connect permissions.
+- Enable Android Usage Access for AscensionOS.
+- Press `Sync now` in `/settings/integrations`.
+
+Gemini not running:
+
+- Confirm `GEMINI_API_KEY` is set server-side.
+- Enable cloud consent in settings.
+- Sign in before requesting cloud analysis.
+- Check the visible fallback reason in the weekly review result.
+
+## Quality Commands
 
 ```bash
 npm run lint
@@ -218,6 +345,15 @@ npm run test
 npm run build
 npm run check
 ```
+
+## Security Rules
+
+- Keep the repo private.
+- Keep the Supabase project private.
+- Keep RLS enabled.
+- Never expose Supabase service-role keys.
+- Never expose `GEMINI_API_KEY` in client-side code.
+- Do not add social sharing or public profiles unless the privacy model is redesigned.
 
 ## Core Rule
 
