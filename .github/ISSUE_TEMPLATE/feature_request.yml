@@ -1,0 +1,40 @@
+name: Feature request
+description: Propose a focused improvement to the private growth loop.
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What friction or missing signal does this solve?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: Describe the smallest useful version.
+    validations:
+      required: true
+  - type: dropdown
+    id: loop
+    attributes:
+      label: Product loop impact
+      options:
+        - Faster daily check-in
+        - Clearer dashboard action
+        - Better weekly review
+        - Better memory continuity
+        - Better phone/S23 integration
+        - Better deployment/security
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      placeholder: |
+        - ...
+        - ...
