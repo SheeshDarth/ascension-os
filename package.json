@@ -25,7 +25,7 @@
     "android:build:debug": "cd android && gradlew.bat assembleDebug --no-daemon"
   },
   "dependencies": {
-    "@capacitor/android": "^8.4.1",
+    "@capacitor/android": "^8.5.0",
     "@capacitor/core": "^8.4.1",
     "@supabase/supabase-js": "^2.45.4",
     "lucide-react": "^1.23.0",
